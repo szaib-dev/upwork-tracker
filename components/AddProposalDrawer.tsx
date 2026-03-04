@@ -14,7 +14,7 @@ function DrawerField({ label, children }: any) {
 
 export function Toggle({ label, value, onChange, color = "#00D4FF" }: any) {
   return (
-    <button onClick={e => { e.stopPropagation(); onChange(!value); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: value ? `${color}12` : "#080C10", border: `1px solid ${value ? color + "40" : "#1E2830"}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", transition: "all 0.15s" }}>
+    <button type="button" onClick={e => { e.stopPropagation(); onChange(!value); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: value ? `${color}12` : "#080C10", border: `1px solid ${value ? color + "40" : "#1E2830"}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", transition: "all 0.15s" }}>
       <span style={{ fontSize: 12, color: value ? color : "#4A5568", fontFamily: "'Syne', sans-serif", fontWeight: 600 }}>{label}</span>
       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 600, color: value ? color : "#2A3440", letterSpacing: "0.05em" }}>{value ? "YES" : "NO"}</span>
     </button>
@@ -43,7 +43,7 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: any) {
       <div onClick={closeDrawer} style={{ position: "absolute", inset: 0, background: "#00000090" }} />
       <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 420, background: "#0E1318", borderLeft: "1px solid #1E2830", display: "flex", flexDirection: "column", overflowY: "auto", padding: 28 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>New Proposal</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#E2E8F0" }}>New Proposal</div>
           <button onClick={closeDrawer} style={{ background: "none", border: "none", color: "#4A5568", cursor: "pointer", fontSize: 20 }}>✕</button>
         </div>
 
@@ -54,6 +54,31 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: any) {
           <DrawerField label="Budget ($)"><input type="number" placeholder="500" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} style={inputStyle} /></DrawerField>
           <DrawerField label="Connects"><input type="number" placeholder="6" value={form.connects} onChange={e => setForm(f => ({ ...f, connects: e.target.value }))} style={inputStyle} /></DrawerField>
         </div>
+
+        {/* STATUS SELECTOR ADDED BACK IN */}
+        <DrawerField label="Status">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {STATUSES.map(s => {
+              const c = STATUS_COLORS[s];
+              const active = form.status === s;
+              return (
+                <button 
+                  key={s} 
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, status: s }))} 
+                  style={{
+                    background: active ? c.bg : "transparent", color: active ? c.text : "#4A5568",
+                    border: `1px solid ${active ? c.dot + "50" : "#1E2830"}`,
+                    borderRadius: 6, padding: "4px 12px", fontSize: 12,
+                    fontFamily: "'Syne', sans-serif", fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </DrawerField>
 
         <DrawerField label="Flags">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
