@@ -6,12 +6,24 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
 import HeaderShareButton from "@/components/HeaderShareButton";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function AppHeader({ onAddProposal }: { onAddProposal?: () => void }) {
   const { theme, toggleTheme } = useTheme();
   const { session } = useAuth();
+  const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const userEmail = session?.user?.email || "";
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast(error.message || "Logout failed.", "error");
+      return;
+    }
+    toast("Logged out.", "success");
+    setMenuOpen(false);
+  };
 
   return (
     <>
@@ -36,7 +48,7 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
               {theme === "dark" ? <FaSun /> : <FaMoon />}
             </button>
             {onAddProposal && <button onClick={onAddProposal} style={{ ...topBtn, background: "var(--primary)", color: "#03131d", border: "1px solid color-mix(in srgb, var(--primary) 70%, var(--border))", fontWeight: 700 }}>+ Add</button>}
-            <button onClick={() => void supabase.auth.signOut()} style={topBtn}>Logout</button>
+            <button onClick={() => void handleLogout()} style={topBtn}>Logout</button>
           </div>
 
           <button onClick={() => setMenuOpen(true)} style={topBtn} className="mobile-menu-btn">
@@ -64,7 +76,7 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
             )}
             <button onClick={() => { toggleTheme(); setMenuOpen(false); }} style={sideBtn}>{theme === "dark" ? "Light Mode" : "Dark Mode"}</button>
             {onAddProposal && <button onClick={() => { onAddProposal(); setMenuOpen(false); }} style={sideBtn}>+ Add Proposal</button>}
-            <button onClick={() => void supabase.auth.signOut()} style={sideBtn}>Logout</button>
+            <button onClick={() => void handleLogout()} style={sideBtn}>Logout</button>
           </div>
         </div>
       )}

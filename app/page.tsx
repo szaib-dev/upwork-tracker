@@ -38,6 +38,7 @@ export default function ProposalTracker() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
@@ -79,13 +80,20 @@ export default function ProposalTracker() {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
+    setAuthNotice(null);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        if (!data.session) {
+          setAuthNotice("Account created. Check your email to confirm, then sign in.");
+        } else {
+          setAuthNotice("Account created and signed in.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        setAuthNotice("Signed in successfully.");
       }
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Authentication failed");
@@ -111,6 +119,7 @@ export default function ProposalTracker() {
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@example.com" style={authInput} />
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="Password" style={authInput} />
               {authError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{authError}</div>}
+              {authNotice && <div style={{ color: "var(--primary)", fontSize: 12 }}>{authNotice}</div>}
               <button type="submit" disabled={authLoading} style={primaryBtn}>{authLoading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}</button>
               <button type="button" onClick={() => setIsSignUp((x) => !x)} style={ghostBtn}>{isSignUp ? "Have an account? Sign In" : "Create new account"}</button>
             </form>
