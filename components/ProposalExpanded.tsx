@@ -1,143 +1,90 @@
 import React, { useState } from "react";
 import { Toggle } from "./AddProposalDrawer";
+import { Proposal } from "@/lib/types/proposal";
 
 const inputStyle = {
-  background: "#080C10", border: "1px solid #1E2830", borderRadius: 7,
-  color: "#E2E8F0", fontFamily: "'DM Mono', monospace", fontSize: 13,
-  padding: "9px 12px", width: "100%", outline: "none", boxSizing: "border-box" as const,
+  background: "var(--bg-elev)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  color: "var(--text)",
+  fontSize: 12,
+  padding: "8px 10px",
+  width: "100%",
+  outline: "none",
+  boxSizing: "border-box" as const,
 };
 
-export default function ProposalExpanded({ p, updateProposal }: any) {
-  const [editingInline, setEditingInline] = useState<{ field: string | null, socialsOpen?: boolean }>({ field: null });
+type ProposalExpandedProps = {
+  p: Proposal;
+  updateProposal: (id: number, field: keyof Proposal, value: unknown) => Promise<void>;
+};
 
-  const startInline = (field: string) => setEditingInline({ ...editingInline, field });
-  const stopInline = () => setEditingInline({ ...editingInline, field: null });
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 12, padding: 12 }}>
+      <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
 
-  const hasSocials = p.socials && Object.values(p.socials).some(v => v);
+export default function ProposalExpanded({ p, updateProposal }: ProposalExpandedProps) {
+  const [socialsOpen, setSocialsOpen] = useState(false);
 
   return (
     <tr>
-      <td colSpan={10} style={{ padding: 0, borderBottom: "1px solid #00D4FF30" }}>
-        <div style={{ background: "#0A0F15", borderLeft: "2px solid #00D4FF40", padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-
-          {/* Col 1 — Job details */}
-          <div>
-            <div style={{ fontSize: 11, color: "#4A5568", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Details</div>
-            {[
-              { label: "Job Title", field: "jobTitle", type: "text" },
-              { label: "Job URL", field: "jobUrl", type: "text" },
-              { label: "Budget ($)", field: "budget", type: "number" },
-              { label: "Connects", field: "connects", type: "number" },
-              { label: "Date Sent", field: "dateSent", type: "date" },
-              { label: "Reply Date", field: "replyDate", type: "date" },
-            ].map(({ label, field, type }) => (
-              <div key={field} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: "#4A5568", marginBottom: 4, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'Syne', sans-serif" }}>{label}</div>
-                {editingInline.field === field ? (
-                  <input 
-                    autoFocus
-                    type={type}
-                    defaultValue={p[field]}
-                    onBlur={e => { 
-                      updateProposal(p.id, field, type === "number" ? Number(e.target.value) : e.target.value); 
-                      stopInline(); 
-                    }}
-                    onClick={e => e.stopPropagation()}
-                    style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }} 
-                  />
-                ) : (
-                  <div 
-                    onClick={e => { e.stopPropagation(); startInline(field); }}
-                    style={{ fontSize: 13, color: p[field] ? "#E2E8F0" : "#2A3440", fontFamily: "'DM Mono', monospace", cursor: "text", padding: "4px 0", borderBottom: "1px dashed #1E2830" }}>
-                    {p[field] || "click to edit"}
-                  </div>
-                )}
+      <td colSpan={11} style={{ padding: "0 0 14px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ margin: "10px 12px 0", borderRadius: 14, background: "var(--bg-elev)", border: "1px solid var(--border)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr", gap: 10 }}>
+          <Block title="Details">
+            <div style={{ display: "grid", gap: 8 }}>
+              <input defaultValue={p.jobTitle} onBlur={(e) => void updateProposal(p.id, "jobTitle", e.target.value)} style={inputStyle} />
+              <input defaultValue={p.jobUrl} onBlur={(e) => void updateProposal(p.id, "jobUrl", e.target.value)} style={inputStyle} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <input type="number" defaultValue={p.budget} onBlur={(e) => void updateProposal(p.id, "budget", Number(e.target.value) || 0)} style={inputStyle} />
+                <input type="number" defaultValue={p.connects} onBlur={(e) => void updateProposal(p.id, "connects", Number(e.target.value) || 0)} style={inputStyle} />
               </div>
-            ))}
-          </div>
-
-          {/* Col 2 — Client + Flags + Socials */}
-          <div>
-            <div style={{ fontSize: 11, color: "#4A5568", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Client</div>
-            {[{ label: "Client Name", field: "clientName" }, { label: "Country", field: "clientCountry" }].map(({ label, field }) => (
-              <div key={field} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: "#4A5568", marginBottom: 4, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'Syne', sans-serif" }}>{label}</div>
-                {editingInline.field === field ? (
-                  <input autoFocus type="text" defaultValue={p[field]}
-                    onBlur={e => { updateProposal(p.id, field, e.target.value); stopInline(); }}
-                    onClick={e => e.stopPropagation()}
-                    style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }} />
-                ) : (
-                  <div onClick={e => { e.stopPropagation(); startInline(field); }}
-                    style={{ fontSize: 13, color: p[field] ? "#E2E8F0" : "#2A3440", fontFamily: "'DM Mono', monospace", cursor: "text", padding: "4px 0", borderBottom: "1px dashed #1E2830" }}>
-                    {p[field] || "click to edit"}
-                  </div>
-                )}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <input type="date" defaultValue={p.dateSent} onBlur={(e) => void updateProposal(p.id, "dateSent", e.target.value)} style={inputStyle} />
+                <input type="datetime-local" defaultValue={p.followUpAt} onBlur={(e) => void updateProposal(p.id, "followUpAt", e.target.value)} style={inputStyle} />
               </div>
-            ))}
-
-            {/* Flags */}
-            <div style={{ fontSize: 11, color: "#4A5568", letterSpacing: "0.08em", textTransform: "uppercase", margin: "14px 0 10px", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Flags</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              <Toggle label="Boosted" value={p.boosted} onChange={(v: boolean) => updateProposal(p.id, "boosted", v)} color="#FF8C42" />
-              <Toggle label="Loom" value={p.loom} onChange={(v: boolean) => updateProposal(p.id, "loom", v)} color="#00D4FF" />
-              <Toggle label="Viewed" value={p.viewed} onChange={(v: boolean) => updateProposal(p.id, "viewed", v)} color="#FFD060" />
-              <Toggle label="Lead" value={p.lead} onChange={(v: boolean) => updateProposal(p.id, "lead", v)} color="#00E599" />
             </div>
+          </Block>
 
-            {/* Socials */}
-            <div style={{ marginTop: 14 }}>
-              <button
-                onClick={e => { e.stopPropagation(); setEditingInline({ ...editingInline, socialsOpen: !editingInline.socialsOpen }); }}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}
-              >
-                <span style={{ fontSize: 11, color: "#4A5568", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
-                  Socials {hasSocials ? <span style={{ color: "#00D4FF" }}>●</span> : ""}
-                </span>
-                <span style={{ fontSize: 10, color: "#2A3440" }}>{editingInline.socialsOpen ? "▲" : "▼"}</span>
+          <Block title="Client & Flags">
+            <div style={{ display: "grid", gap: 8 }}>
+              <input defaultValue={p.clientName} placeholder="Client name" onBlur={(e) => void updateProposal(p.id, "clientName", e.target.value)} style={inputStyle} />
+              <input defaultValue={p.clientEmail} placeholder="Client email" onBlur={(e) => void updateProposal(p.id, "clientEmail", e.target.value)} style={inputStyle} />
+              <input defaultValue={p.clientCountry} placeholder="Country" onBlur={(e) => void updateProposal(p.id, "clientCountry", e.target.value)} style={inputStyle} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <Toggle label="Boosted" value={p.boosted} onChange={(v) => void updateProposal(p.id, "boosted", v)} color="#ff9d5c" />
+                <Toggle label="Loom" value={p.loom} onChange={(v) => void updateProposal(p.id, "loom", v)} color="var(--primary)" />
+                <Toggle label="Viewed" value={p.viewed} onChange={(v) => void updateProposal(p.id, "viewed", v)} color="#ffd06b" />
+                <Toggle label="Lead" value={p.lead} onChange={(v) => void updateProposal(p.id, "lead", v)} color="#32db98" />
+              </div>
+
+              <button onClick={() => setSocialsOpen((x) => !x)} style={{ background: "var(--bg-elev)", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer", textAlign: "left" }}>
+                Social Profiles {socialsOpen ? "-" : "+"}
               </button>
-              
-              {editingInline.socialsOpen && (
-                <div>
-                  {[["linkedin", "LinkedIn"], ["twitter", "X/Twitter"], ["upwork", "Upwork"], ["website", "Website"]].map(([k, l]) => (
-                    <div key={k} style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: "#4A5568", marginBottom: 3, fontFamily: "'Syne', sans-serif" }}>{l}</div>
-                      <input type="url" placeholder="https://"
-                        defaultValue={p.socials?.[k] || ""}
-                        onBlur={e => updateProposal(p.id, "socials", { ...p.socials, [k]: e.target.value })}
-                        onClick={e => e.stopPropagation()}
-                        style={{ ...inputStyle, padding: "5px 8px", fontSize: 11 }} />
-                    </div>
+
+              {socialsOpen && (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {[
+                    ["linkedin", "LinkedIn"],
+                    ["twitter", "X"],
+                    ["upwork", "Upwork"],
+                    ["website", "Website"],
+                  ].map(([key, label]) => (
+                    <input key={key} defaultValue={p.socials?.[key] ?? ""} placeholder={label} onBlur={(e) => void updateProposal(p.id, "socials", { ...p.socials, [key]: e.target.value })} style={inputStyle} />
                   ))}
                 </div>
               )}
-              
-              {!editingInline.socialsOpen && hasSocials && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {[["linkedin", "LI"], ["twitter", "X"], ["upwork", "UP"], ["website", "WEB"]].map(([k, l]) =>
-                    p.socials?.[k] ? (
-                      <a key={k} href={p.socials[k]} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                        style={{ fontSize: 11, color: "#00D4FF", fontFamily: "'DM Mono', monospace", textDecoration: "none", background: "#00D4FF15", border: "1px solid #00D4FF30", borderRadius: 4, padding: "2px 8px" }}>
-                        {l}
-                      </a>
-                    ) : null
-                  )}
-                </div>
-              )}
             </div>
-          </div>
+          </Block>
 
-          {/* Col 3 — Proposal Text */}
-          <div>
-            <div style={{ fontSize: 11, color: "#4A5568", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Proposal Text</div>
-            <textarea 
-              defaultValue={p.proposalText || ""}
-              onBlur={e => updateProposal(p.id, "proposalText", e.target.value)}
-              placeholder="Paste your proposal text here..."
-              onClick={e => e.stopPropagation()}
-              style={{ ...inputStyle, height: 260, resize: "none", lineHeight: 1.6, color: "#94A3B8" }} 
-            />
-          </div>
+          <Block title="Proposal Content">
+            <textarea defaultValue={p.proposalText || ""} onBlur={(e) => void updateProposal(p.id, "proposalText", e.target.value)} style={{ ...inputStyle, minHeight: 280, lineHeight: 1.6 }} />
+          </Block>
         </div>
       </td>
     </tr>

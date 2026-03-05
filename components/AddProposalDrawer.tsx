@@ -1,78 +1,123 @@
 import React, { useState } from "react";
 import { STATUSES, STATUS_COLORS } from "./Filters";
+import { emptyProposalInput, ProposalInput } from "@/lib/types/proposal";
 
-const inputStyle = { background: "#080C10", border: "1px solid #1E2830", borderRadius: 7, color: "#E2E8F0", fontFamily: "'DM Mono', monospace", fontSize: 13, padding: "9px 12px", width: "100%", outline: "none", boxSizing: "border-box" as const };
+const inputStyle = {
+  background: "var(--bg-elev)",
+  border: "1px solid var(--border)",
+  borderRadius: 9,
+  color: "var(--text)",
+  fontSize: 13,
+  padding: "9px 12px",
+  width: "100%",
+  outline: "none",
+  boxSizing: "border-box" as const,
+};
 
-function DrawerField({ label, children }: any) {
+function DrawerField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 11, color: "#4A5568", fontFamily: "'Syne', sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</label>
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 10, color: "var(--muted)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: 6 }}>{label}</label>
       {children}
     </div>
   );
 }
 
-export function Toggle({ label, value, onChange, color = "#00D4FF" }: any) {
+export function Toggle({ label, value, onChange, color = "var(--primary)" }: { label: string; value: boolean; onChange: (next: boolean) => void; color?: string }) {
   return (
-    <button type="button" onClick={e => { e.stopPropagation(); onChange(!value); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: value ? `${color}12` : "#080C10", border: `1px solid ${value ? color + "40" : "#1E2830"}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", transition: "all 0.15s" }}>
-      <span style={{ fontSize: 12, color: value ? color : "#4A5568", fontFamily: "'Syne', sans-serif", fontWeight: 600 }}>{label}</span>
-      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 600, color: value ? color : "#2A3440", letterSpacing: "0.05em" }}>{value ? "YES" : "NO"}</span>
+    <button type="button" onClick={() => onChange(!value)} style={{ display: "flex", justifyContent: "space-between", width: "100%", background: value ? `${color}22` : "var(--bg-elev)", border: `1px solid ${value ? color : "var(--border)"}`, borderRadius: 8, padding: "7px 10px", color: value ? color : "var(--muted)", cursor: "pointer" }}>
+      <span style={{ fontSize: 12 }}>{label}</span>
+      <span style={{ fontSize: 11 }}>{value ? "YES" : "NO"}</span>
     </button>
   );
 }
 
-export default function AddProposalDrawer({ closeDrawer, addProposal }: any) {
-  const emptyForm = {
-    dateSent: new Date().toISOString().split("T")[0],
-    jobTitle: "", jobUrl: "", budget: "", connects: "",
-    boosted: false, loom: false, viewed: false, lead: false,
-    status: "Sent", replyDate: "", clientCountry: "", clientName: "",
-    proposalText: "", socials: { linkedin: "", twitter: "", upwork: "", website: "" },
-  };
-  
-  const [form, setForm] = useState(emptyForm);
-  const [socialsOpen, setSocialsOpen] = useState(false);
+type AddProposalDrawerProps = {
+  closeDrawer: () => void;
+  addProposal: (input: Partial<ProposalInput>) => Promise<{ ok: boolean; error?: string }>;
+};
 
-  const handleSubmit = () => {
-    addProposal({ ...form, budget: Number(form.budget) || 0, connects: Number(form.connects) || 0 });
+async function guessTitle(url: string): Promise<string> {
+  if (!url) return "";
+  try {
+    const response = await fetch("/api/extract-title", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = (await response.json()) as { title?: string };
+    return data.title?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+export default function AddProposalDrawer({ closeDrawer, addProposal }: AddProposalDrawerProps) {
+  const [form, setForm] = useState<ProposalInput>({ ...emptyProposalInput, dateSent: new Date().toISOString().slice(0, 10) });
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleAutoTitle = async () => {
+    if (!form.jobUrl || form.jobTitle.trim()) return;
+    const title = await guessTitle(form.jobUrl);
+    if (title) setForm((f) => ({ ...f, jobTitle: title }));
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setSubmitError(null);
+
+    const result = await addProposal({
+      ...form,
+      budget: Number(form.budget) || 0,
+      connects: Number(form.connects) || 0,
+      status: form.status || "Sent",
+      dateSent: form.dateSent || new Date().toISOString().slice(0, 10),
+      followUpAt: form.followUpAt || "",
+    });
+
+    setSaving(false);
+    if (!result.ok) {
+      setSubmitError(result.error ?? "Unable to save proposal.");
+      return;
+    }
     closeDrawer();
   };
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
-      <div onClick={closeDrawer} style={{ position: "absolute", inset: 0, background: "#00000090" }} />
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 420, background: "#0E1318", borderLeft: "1px solid #1E2830", display: "flex", flexDirection: "column", overflowY: "auto", padding: 28 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#E2E8F0" }}>New Proposal</div>
-          <button onClick={closeDrawer} style={{ background: "none", border: "none", color: "#4A5568", cursor: "pointer", fontSize: 20 }}>✕</button>
+      <div onClick={closeDrawer} style={{ position: "absolute", inset: 0, background: "#00000066" }} />
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 460, maxWidth: "100%", background: "var(--bg-soft)", borderLeft: "1px solid var(--border)", overflowY: "auto", padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>Add Proposal</div>
+          <button onClick={closeDrawer} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 20, cursor: "pointer" }}>x</button>
         </div>
 
-        <DrawerField label="Date Sent"><input type="date" value={form.dateSent} onChange={e => setForm(f => ({ ...f, dateSent: e.target.value }))} style={inputStyle} /></DrawerField>
-        <DrawerField label="Job Title"><input type="text" placeholder="e.g. Next.js Dashboard" value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} style={inputStyle} /></DrawerField>
-        <DrawerField label="Job URL"><input type="url" placeholder="https://upwork.com/jobs/..." value={form.jobUrl} onChange={e => setForm(f => ({ ...f, jobUrl: e.target.value }))} style={inputStyle} /></DrawerField>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <DrawerField label="Budget ($)"><input type="number" placeholder="500" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} style={inputStyle} /></DrawerField>
-          <DrawerField label="Connects"><input type="number" placeholder="6" value={form.connects} onChange={e => setForm(f => ({ ...f, connects: e.target.value }))} style={inputStyle} /></DrawerField>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <DrawerField label="Date Sent"><input type="date" value={form.dateSent} onChange={(e) => setForm((f) => ({ ...f, dateSent: e.target.value }))} style={inputStyle} /></DrawerField>
+          <DrawerField label="Follow Up"><input type="datetime-local" value={form.followUpAt} onChange={(e) => setForm((f) => ({ ...f, followUpAt: e.target.value }))} style={inputStyle} /></DrawerField>
         </div>
 
-        {/* STATUS SELECTOR ADDED BACK IN */}
+        <DrawerField label="Job URL">
+          <input type="url" value={form.jobUrl} onChange={(e) => setForm((f) => ({ ...f, jobUrl: e.target.value }))} onBlur={handleAutoTitle} placeholder="Paste job URL" style={inputStyle} />
+        </DrawerField>
+
+        <DrawerField label="Job Title (auto-filled from metadata)">
+          <input type="text" value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} placeholder="Optional" style={inputStyle} />
+        </DrawerField>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <DrawerField label="Pricing ($)"><input type="number" value={String(form.budget)} onChange={(e) => setForm((f) => ({ ...f, budget: Number(e.target.value) || 0 }))} style={inputStyle} /></DrawerField>
+          <DrawerField label="Connects"><input type="number" value={String(form.connects)} onChange={(e) => setForm((f) => ({ ...f, connects: Number(e.target.value) || 0 }))} style={inputStyle} /></DrawerField>
+        </div>
+
         <DrawerField label="Status">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {STATUSES.map(s => {
+            {STATUSES.map((s) => {
               const c = STATUS_COLORS[s];
               const active = form.status === s;
               return (
-                <button 
-                  key={s} 
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, status: s }))} 
-                  style={{
-                    background: active ? c.bg : "transparent", color: active ? c.text : "#4A5568",
-                    border: `1px solid ${active ? c.dot + "50" : "#1E2830"}`,
-                    borderRadius: 6, padding: "4px 12px", fontSize: 12,
-                    fontFamily: "'Syne', sans-serif", fontWeight: 600, cursor: "pointer",
-                  }}
-                >
+                <button key={s} type="button" onClick={() => setForm((f) => ({ ...f, status: s }))} style={{ background: active ? c.bg : "var(--bg-elev)", color: active ? c.text : "var(--muted)", border: `1px solid ${active ? c.dot : "var(--border)"}`, borderRadius: 8, padding: "5px 9px", fontSize: 12, cursor: "pointer" }}>
                   {s}
                 </button>
               );
@@ -81,22 +126,22 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: any) {
         </DrawerField>
 
         <DrawerField label="Flags">
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Toggle label="Boosted" value={form.boosted} onChange={(v: boolean) => setForm(f => ({ ...f, boosted: v }))} color="#FF8C42" />
-            <Toggle label="Loom" value={form.loom} onChange={(v: boolean) => setForm(f => ({ ...f, loom: v }))} color="#00D4FF" />
-            <Toggle label="Viewed" value={form.viewed} onChange={(v: boolean) => setForm(f => ({ ...f, viewed: v }))} color="#FFD060" />
-            <Toggle label="Lead" value={form.lead} onChange={(v: boolean) => setForm(f => ({ ...f, lead: v }))} color="#00E599" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <Toggle label="Boosted" value={form.boosted} onChange={(v) => setForm((f) => ({ ...f, boosted: v }))} color="#ff9d5c" />
+            <Toggle label="Loom" value={form.loom} onChange={(v) => setForm((f) => ({ ...f, loom: v }))} color="var(--primary)" />
+            <Toggle label="Viewed" value={form.viewed} onChange={(v) => setForm((f) => ({ ...f, viewed: v }))} color="#ffd06b" />
+            <Toggle label="Lead" value={form.lead} onChange={(v) => setForm((f) => ({ ...f, lead: v }))} color="#32db98" />
           </div>
         </DrawerField>
 
-        <DrawerField label="Client Name"><input type="text" placeholder="e.g. James W." value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} style={inputStyle} /></DrawerField>
-        
-        <button onClick={handleSubmit} disabled={!form.jobTitle} style={{
-          background: form.jobTitle ? "#00D4FF" : "#1E2830", color: form.jobTitle ? "#080C10" : "#4A5568",
-          border: "none", borderRadius: 8, padding: "12px", width: "100%", fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 14,
-          cursor: form.jobTitle ? "pointer" : "default", marginTop: 8,
-        }}>
-          Save Proposal
+        <DrawerField label="Proposal Text">
+          <textarea value={form.proposalText} onChange={(e) => setForm((f) => ({ ...f, proposalText: e.target.value }))} style={{ ...inputStyle, minHeight: 120 }} />
+        </DrawerField>
+
+        {submitError && <div style={{ color: "var(--danger)", background: "color-mix(in srgb, var(--danger) 16%, transparent)", border: "1px solid var(--danger)", borderRadius: 8, padding: 9, fontSize: 12, marginBottom: 8 }}>{submitError}</div>}
+
+        <button onClick={handleSubmit} disabled={saving} style={{ background: "var(--primary)", color: "#04141f", border: "none", borderRadius: 9, width: "100%", padding: "11px", fontWeight: 700, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
+          {saving ? "Saving..." : "Save Proposal"}
         </button>
       </div>
     </div>

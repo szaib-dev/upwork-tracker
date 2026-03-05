@@ -1,26 +1,30 @@
 import React, { useMemo } from "react";
+import { Proposal } from "@/lib/types/proposal";
 
-function StatCard({ label, value, color, sub }: any) {
+function StatCard({ label, value, color, sub }: { label: string; value: React.ReactNode; color: string; sub?: string }) {
   return (
-    <div style={{ background: "#0E1318", border: "1px solid #1E2830", borderRadius: 10, padding: "14px 20px", flex: 1, minWidth: 100 }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#2A3440", fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{sub}</div>}
-      <div style={{ fontSize: 11, color: "#4A5568", fontFamily: "'Syne', sans-serif", marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
+    <div style={{ background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", minWidth: 120 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "monospace", lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace", marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
     </div>
   );
 }
 
-export default function DashboardStats({ proposals }: any) {
+export default function DashboardStats({ proposals }: { proposals: Proposal[] }) {
   const stats = useMemo(() => {
     const total = proposals.length;
-    const hired = proposals.filter((p: any) => p.status === "Hired").length;
-    const viewed = proposals.filter((p: any) => p.viewed).length;
-    const replied = proposals.filter((p: any) => ["Replied", "Interview", "Hired"].includes(p.status)).length;
-    const connects = proposals.reduce((a: number, p: any) => a + (p.connects || 0), 0);
-    const totalBudget = proposals.filter((p: any) => p.status === "Hired").reduce((a: number, p: any) => a + (p.budget || 0), 0);
-    
+    const hired = proposals.filter((p) => p.status === "Hired").length;
+    const viewed = proposals.filter((p) => p.viewed).length;
+    const replied = proposals.filter((p) => ["Replied", "Interview", "Hired"].includes(p.status)).length;
+    const connects = proposals.reduce((a, p) => a + (p.connects || 0), 0);
+    const totalBudget = proposals.filter((p) => p.status === "Hired").reduce((a, p) => a + (p.budget || 0), 0);
+
     return {
-      total, hired, connects, totalBudget,
+      total,
+      hired,
+      connects,
+      totalBudget,
       winRate: total ? Math.round((hired / total) * 100) : 0,
       viewRate: total ? Math.round((viewed / total) * 100) : 0,
       replyRate: total ? Math.round((replied / total) * 100) : 0,
@@ -30,15 +34,15 @@ export default function DashboardStats({ proposals }: any) {
   }, [proposals]);
 
   return (
-    <div style={{ marginBottom: 32, padding: "16px 28px" }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <StatCard label="Total" value={stats.total} color="#E2E8F0" />
-        <StatCard label="Hired" value={stats.hired} color="#00E599" sub={`$${stats.totalBudget.toLocaleString()} earned`} />
-        <StatCard label="Win Rate" value={`${stats.winRate}%`} color="#00E599" />
-        <StatCard label="View Rate" value={`${stats.viewRate}%`} color="#FFD060" />
-        <StatCard label="Reply Rate" value={`${stats.replyRate}%`} color="#B06EFF" />
-        <StatCard label="Connects Used" value={stats.connects} color="#00D4FF" sub={`${stats.costPerHire} per hire`} />
-        <StatCard label="Avg Job Budget" value={`$${stats.avgBudget}`} color="#FF8C42" />
+    <div style={{ border: "1px solid var(--border)", background: "var(--bg-soft)", borderRadius: 14, padding: 12 }}>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+        <StatCard label="Total" value={stats.total} color="var(--text)" />
+        <StatCard label="Hired" value={stats.hired} color="var(--success)" sub={`$${stats.totalBudget.toLocaleString()} earned`} />
+        <StatCard label="Win Rate" value={`${stats.winRate}%`} color="var(--success)" />
+        <StatCard label="View Rate" value={`${stats.viewRate}%`} color="#ffd060" />
+        <StatCard label="Reply Rate" value={`${stats.replyRate}%`} color="#b06eff" />
+        <StatCard label="Connects Used" value={stats.connects} color="var(--primary)" sub={`${stats.costPerHire} per hire`} />
+        <StatCard label="Avg Job Budget" value={`$${stats.avgBudget}`} color="#ff9d5c" />
       </div>
     </div>
   );

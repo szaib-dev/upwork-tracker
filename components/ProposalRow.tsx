@@ -1,95 +1,129 @@
 import React, { useState } from "react";
 import ProposalExpanded from "./ProposalExpanded";
 import { STATUSES, STATUS_COLORS } from "./Filters";
+import { Proposal } from "@/lib/types/proposal";
+import { FaTrash } from "react-icons/fa";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 
-// Helper components localized to avoid extra file clutter
-function SmallToggle({ value, onChange }: any) {
+function SmallToggle({ value, onChange }: { value: boolean; onChange: (next: boolean) => void }) {
   return (
-    <button onClick={e => { e.stopPropagation(); onChange(!value); }} style={{
-      background: value ? "#00D4FF20" : "#1E2830",
-      color: value ? "#00D4FF" : "#4A5568",
-      border: `1px solid ${value ? "#00D4FF40" : "#1E2830"}`,
-      borderRadius: 5, padding: "2px 10px", fontSize: 11,
-      fontFamily: "'DM Mono', monospace", cursor: "pointer", fontWeight: 600,
-    }}>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange(!value);
+      }}
+      style={{ background: value ? "var(--primary-soft)" : "var(--bg-elev)", color: value ? "var(--primary)" : "var(--muted)", border: `1px solid ${value ? "var(--primary)" : "var(--border)"}`, borderRadius: 5, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}
+    >
       {value ? "YES" : "NO"}
     </button>
   );
 }
 
-function StatusBadge({ status, onChange }: any) {
+function StatusBadge({ status, onChange }: { status: Proposal["status"]; onChange: (next: Proposal["status"]) => void }) {
   const [open, setOpen] = useState(false);
   const c = STATUS_COLORS[status] || STATUS_COLORS.Sent;
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={e => { e.stopPropagation(); setOpen(o => !o); }} style={{
-        background: c.bg, color: c.text, border: `1px solid ${c.dot}30`,
-        borderRadius: 6, padding: "3px 10px 3px 8px", fontSize: 12,
-        fontFamily: "'Syne', sans-serif", fontWeight: 600, cursor: "pointer",
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot }} />
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        style={{ background: c.bg, color: c.text, border: `1px solid ${c.dot}55`, borderRadius: 6, padding: "3px 8px", fontSize: 12, cursor: "pointer" }}
+      >
         {status}
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 100, background: "#0E1318", border: "1px solid #1E2830", borderRadius: 8, overflow: "hidden", minWidth: 130 }}>
-          {STATUSES.map(s => {
-            const sc = STATUS_COLORS[s];
-            return (
-              <button key={s} onClick={e => { e.stopPropagation(); onChange(s); setOpen(false); }} style={{
-                display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", background: s === status ? sc.bg : "transparent", color: sc.text, border: "none", cursor: "pointer", fontSize: 12, fontFamily: "'Syne', sans-serif", fontWeight: 600,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.dot }} /> {s}
-              </button>
-            );
-          })}
+        <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 100, background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 8, minWidth: 120 }}>
+          {STATUSES.map((s) => (
+            <button key={s} onClick={(e) => { e.stopPropagation(); onChange(s); setOpen(false); }} style={{ display: "block", width: "100%", background: "transparent", color: STATUS_COLORS[s].text, border: "none", padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12 }}>
+              {s}
+            </button>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-const colStyle = (w: number) => ({ width: w, minWidth: w, padding: "0 12px" });
+const colStyle = (w: number) => ({ width: w, minWidth: w, padding: "0 10px" });
 
-export default function ProposalRow({ p, isExpanded, onToggleExpand, updateProposal }: any) {
+type ProposalRowProps = {
+  p: Proposal;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  updateProposal: (id: number, field: keyof Proposal, value: unknown) => Promise<void>;
+  deleteProposal: (id: number) => Promise<{ ok: boolean; error?: string }>;
+};
+
+function previewText(text: string): string {
+  if (!text) return "No preview available";
+  return text.length > 250 ? `${text.slice(0, 250)}...` : text;
+}
+
+export default function ProposalRow({ p, isExpanded, onToggleExpand, updateProposal, deleteProposal }: ProposalRowProps) {
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const yes = await confirm("This proposal will be deleted permanently.", "Delete proposal?");
+    if (!yes) return;
+    const result = await deleteProposal(p.id);
+    if (!result.ok) {
+      toast(result.error || "Failed to delete proposal.", "error");
+      return;
+    }
+    toast("Proposal deleted.", "success");
+  };
+
   return (
-    <React.Fragment>
-      <tr onClick={onToggleExpand} style={{ borderBottom: "1px solid #1E283080", cursor: "pointer", height: 48, transition: "background 0.15s" }}>
-        <td style={{ ...colStyle(100), fontFamily: "'DM Mono', monospace", fontSize: 12, color: "#4A5568" }}>
-          {p.dateSent?.slice(5).replace("-", "/")}
+    <>
+      <tr onClick={onToggleExpand} style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", verticalAlign: "top" }}>
+        <td style={{ ...colStyle(340), paddingTop: 8, paddingBottom: 8 }}>
+          {p.jobUrl ? (
+            <a
+              href={p.jobUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: "inline-block", fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4, textDecoration: "none" }}
+            >
+              {p.jobTitle || "Untitled Proposal"}
+            </a>
+          ) : (
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{p.jobTitle || "Untitled Proposal"}</div>
+          )}
+          <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.45 }}>{previewText(p.proposalText)}</div>
+          <button onClick={(e) => { e.stopPropagation(); onToggleExpand(); }} style={{ marginTop: 6, background: "var(--bg-elev)", border: "1px solid var(--border)", color: "var(--primary)", borderRadius: 8, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>
+            Go in
+          </button>
         </td>
-        <td style={{ ...colStyle(240) }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block", maxWidth: 220 }}>
-            {p.jobUrl ? <a href={p.jobUrl} onClick={e => e.stopPropagation()} target="_blank" rel="noopener noreferrer" style={{ color: "#00D4FF", textDecoration: "none" }}>{p.jobTitle}</a> : p.jobTitle}
-          </span>
+
+        <td style={{ ...colStyle(120), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}>
+          <StatusBadge status={p.status} onChange={(v) => void updateProposal(p.id, "status", v)} />
         </td>
-        <td style={colStyle(120)} onClick={e => e.stopPropagation()}>
-          <StatusBadge status={p.status} onChange={(v: string) => updateProposal(p.id, "status", v)} />
-        </td>
-        <td style={{ ...colStyle(90), fontFamily: "'DM Mono', monospace", fontSize: 13, color: "#E2E8F0" }}>
-          {p.budget ? `$${p.budget}` : <span style={{ color: "#1E2830" }}>—</span>}
-        </td>
-        <td style={{ ...colStyle(80), fontFamily: "'DM Mono', monospace", fontSize: 13, color: "#00D4FF" }}>
-          {p.connects || <span style={{ color: "#1E2830" }}>—</span>}
-        </td>
-        <td style={colStyle(70)} onClick={e => e.stopPropagation()}>
-          <SmallToggle value={p.boosted} onChange={(v: boolean) => updateProposal(p.id, "boosted", v)} />
-        </td>
-        <td style={colStyle(70)} onClick={e => e.stopPropagation()}>
-          <SmallToggle value={p.loom} onChange={(v: boolean) => updateProposal(p.id, "loom", v)} />
-        </td>
-        <td style={colStyle(70)} onClick={e => e.stopPropagation()}>
-          <SmallToggle value={p.viewed} onChange={(v: boolean) => updateProposal(p.id, "viewed", v)} />
-        </td>
-        <td style={colStyle(70)} onClick={e => e.stopPropagation()}>
-          <SmallToggle value={p.lead} onChange={(v: boolean) => updateProposal(p.id, "lead", v)} />
-        </td>
-        <td style={{ ...colStyle(100), fontSize: 12, color: "#94A3B8" }}>
-          {p.clientCountry || <span style={{ color: "#1E2830" }}>—</span>}
+
+        <td style={{ ...colStyle(90), fontFamily: "monospace", fontSize: 12, color: "var(--text)", paddingTop: 10 }}>{p.budget ? `$${p.budget}` : "-"}</td>
+        <td style={{ ...colStyle(80), fontFamily: "monospace", fontSize: 12, color: "var(--primary)", paddingTop: 10 }}>{p.connects || "-"}</td>
+
+        <td style={{ ...colStyle(68), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}><SmallToggle value={p.boosted} onChange={(v) => void updateProposal(p.id, "boosted", v)} /></td>
+        <td style={{ ...colStyle(62), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}><SmallToggle value={p.loom} onChange={(v) => void updateProposal(p.id, "loom", v)} /></td>
+        <td style={{ ...colStyle(70), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}><SmallToggle value={p.viewed} onChange={(v) => void updateProposal(p.id, "viewed", v)} /></td>
+        <td style={{ ...colStyle(60), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}><SmallToggle value={p.lead} onChange={(v) => void updateProposal(p.id, "lead", v)} /></td>
+
+        <td style={{ ...colStyle(100), fontFamily: "monospace", fontSize: 12, color: "var(--muted)", paddingTop: 10 }}>{p.dateSent?.slice(5).replace("-", "/")}</td>
+        <td style={{ ...colStyle(130), fontSize: 12, color: "var(--muted)", paddingTop: 10 }}>{p.followUpAt ? new Date(p.followUpAt).toLocaleString() : "-"}</td>
+
+        <td style={{ ...colStyle(80), paddingTop: 10 }} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleDelete} style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--danger)", borderRadius: 8, padding: "4px 8px", cursor: "pointer" }}>
+            <FaTrash />
+          </button>
         </td>
       </tr>
 
       {isExpanded && <ProposalExpanded p={p} updateProposal={updateProposal} />}
-    </React.Fragment>
+    </>
   );
 }

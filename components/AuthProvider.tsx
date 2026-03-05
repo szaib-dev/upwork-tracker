@@ -1,37 +1,42 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-const AuthContext = createContext<any>(null);
+type AuthContextValue = {
+  session: Session | null;
+};
+
+const AuthContext = createContext<AuthContextValue>({ session: null });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get the active session when the app loads
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
+      setSession(activeSession);
       setLoading(false);
     });
 
-    // Listen for login/logout events in real-time
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+      setSession(activeSession);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
-    return <div style={{ background: "#080C10", height: "100vh", color: "#00D4FF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>Authenticating...</div>;
+    return (
+      <div style={{ background: "var(--bg)", height: "100vh", color: "var(--primary)", display: "grid", placeItems: "center", fontFamily: "monospace" }}>
+        Authenticating...
+      </div>
+    );
   }
 
-  return (
-    <AuthContext.Provider value={{ session }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ session }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);
