@@ -20,12 +20,14 @@ function formatMonthLabel(month: string) {
 function buildCountdown(target: Date, nowTs: number) {
   const diff = target.getTime() - nowTs;
   if (diff <= 0) return "Due now";
-  const mins = Math.floor(diff / 60000);
-  const d = Math.floor(mins / 1440);
-  const h = Math.floor((mins % 1440) / 60);
-  const m = mins % 60;
-  if (d > 0) return `${d}d ${h}h`;
-  return `${h}h ${m}m`;
+  const totalSeconds = Math.floor(diff / 1000);
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  return `${m}m ${s}s`;
 }
 
 export default function ProposalTracker() {
@@ -35,6 +37,7 @@ export default function ProposalTracker() {
   const [filter, setFilter] = useState<FilterType>("All");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,7 +50,7 @@ export default function ProposalTracker() {
   const [nowTs, setNowTs] = useState(() => Date.now());
 
   useEffect(() => {
-    const timer = setInterval(() => setNowTs(Date.now()), 60000);
+    const timer = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -133,11 +136,25 @@ export default function ProposalTracker() {
         if (error) throw error;
         setAuthNotice("Password reset link sent. Check your email.");
       } else if (isSignUp) {
+        const trimmedName = fullName.trim();
+        if (!trimmedName) {
+          setAuthError("Name is required.");
+          return;
+        }
         if (password !== confirmPassword) {
           setAuthError("Passwords do not match.");
           return;
         }
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: trimmedName,
+              name: trimmedName,
+            },
+          },
+        });
         if (error) throw error;
         if (!data.session) {
           setAuthNotice("Account created. Check your email to confirm, then sign in.");
@@ -296,6 +313,16 @@ export default function ProposalTracker() {
           </div>
 
           <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {isSignUp && (
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                type="text"
+                required
+                placeholder="Full name"
+                className="auth-input"
+              />
+            )}
 
             <input
               value={email}
@@ -370,6 +397,7 @@ export default function ProposalTracker() {
                 if (isRecoveryMode) setIsRecoveryMode(false);
                 if (isForgotMode) setIsForgotMode(false);
                 else setIsSignUp((x) => !x);
+                setFullName("");
                 setPassword("");
                 setConfirmPassword("");
                 setAuthError(null);

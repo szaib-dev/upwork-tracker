@@ -1,6 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
-import { FaEnvelope, FaGlobe, FaLinkedin, FaTwitter, FaTrash, FaChevronLeft } from "react-icons/fa";
+import { useEffect, useMemo, useState } from "react";
+import { FaEnvelope, FaGlobe, FaLinkedin, FaTwitter, FaTrash, FaChevronLeft, FaUserPlus } from "react-icons/fa";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { useProposals } from "@/hooks/proposal";
@@ -8,15 +8,24 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import CustomDropdown from "@/components/ui/CustomDropdown";
 import { STATUSES } from "@/components/Filters";
+import { supabase } from "@/lib/supabase";
 
 type ClientDetail = {
   key: string;
   name: string;
   email: string;
   country: string;
+  profileId?: number;
   proposalIds: number[];
   proposals: { id: number; title: string; status: string; followUpAt: string; dateSent: string }[];
   socials: { linkedin: string; twitter: string; upwork: string; website: string };
+};
+
+type ManualClientProfile = {
+  id: number;
+  name: string;
+  email: string;
+  country: string;
 };
 
 function normalizeLink(raw: string) {
@@ -26,7 +35,11 @@ function normalizeLink(raw: string) {
 }
 
 function getInitials(name: string) {
-  return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 export default function ClientsPage() {
@@ -38,9 +51,55 @@ export default function ClientsPage() {
   const [bulkStatus, setBulkStatus] = useState<string>("Sent");
   const [bulkFollowAt, setBulkFollowAt] = useState("");
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [addClientOpen, setAddClientOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientCountry, setNewClientCountry] = useState("");
+  const [savingClient, setSavingClient] = useState(false);
+  const [manualClients, setManualClients] = useState<ManualClientProfile[]>([]);
+  const [manualLoading, setManualLoading] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setManualClients([]);
+      return;
+    }
+
+    let active = true;
+    const fetchManualClients = async () => {
+      setManualLoading(true);
+      const { data, error } = await supabase
+        .from("client_profiles")
+        .select("id, name, email, country")
+        .eq("user_id", session.user.id)
+        .order("id", { ascending: false });
+
+      if (!active) return;
+      if (error) {
+        toast(error.message || "Unable to load manual clients.", "error");
+        setManualLoading(false);
+        return;
+      }
+
+      const rows = ((data as Array<Record<string, unknown>> | null) ?? []).map((row) => ({
+        id: Number(row.id ?? 0),
+        name: String(row.name ?? ""),
+        email: String(row.email ?? ""),
+        country: String(row.country ?? ""),
+      }));
+      setManualClients(rows);
+      setManualLoading(false);
+    };
+
+    void fetchManualClients();
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id, toast]);
 
   const clients = useMemo<ClientDetail[]>(() => {
     const map: Record<string, ClientDetail> = {};
+
     proposals.forEach((p) => {
       const key = (p.clientEmail || p.clientName || `client-${p.id}`).toLowerCase();
       if (!map[key]) {
@@ -49,6 +108,7 @@ export default function ClientsPage() {
           name: p.clientName || "Unknown Client",
           email: p.clientEmail || "",
           country: p.clientCountry || "",
+          profileId: undefined,
           proposalIds: [],
           proposals: [],
           socials: { linkedin: "", twitter: "", upwork: "", website: "" },
@@ -61,13 +121,36 @@ export default function ClientsPage() {
       map[key].socials.upwork ||= p.socials?.upwork || "";
       map[key].socials.website ||= p.socials?.website || "";
     });
-    return Object.values(map).sort((a, b) => b.proposalIds.length - a.proposalIds.length);
-  }, [proposals]);
 
-  const selected = useMemo(
-    () => clients.find((c) => c.key === selectedClientKey) ?? clients[0] ?? null,
-    [clients, selectedClientKey],
-  );
+    for (const c of manualClients) {
+      const key = (c.email || c.name || `client-profile-${c.id}`).toLowerCase();
+      if (!map[key]) {
+        map[key] = {
+          key,
+          name: c.name || "Unknown Client",
+          email: c.email || "",
+          country: c.country || "",
+          profileId: c.id,
+          proposalIds: [],
+          proposals: [],
+          socials: { linkedin: "", twitter: "", upwork: "", website: "" },
+        };
+        continue;
+      }
+
+      map[key].profileId ||= c.id;
+      if (!map[key].email && c.email) map[key].email = c.email;
+      if (!map[key].country && c.country) map[key].country = c.country;
+      if (!map[key].name && c.name) map[key].name = c.name;
+    }
+
+    return Object.values(map).sort((a, b) => {
+      if (b.proposalIds.length !== a.proposalIds.length) return b.proposalIds.length - a.proposalIds.length;
+      return a.name.localeCompare(b.name);
+    });
+  }, [manualClients, proposals]);
+
+  const selected = useMemo(() => clients.find((c) => c.key === selectedClientKey) ?? clients[0] ?? null, [clients, selectedClientKey]);
 
   const handleSelectClient = (key: string) => {
     setSelectedClientKey(key);
@@ -76,6 +159,10 @@ export default function ClientsPage() {
 
   const setStatusForClient = async () => {
     if (!selected) return;
+    if (!selected.proposalIds.length) {
+      toast("No proposals linked to this client.", "error");
+      return;
+    }
     for (const id of selected.proposalIds) await updateProposal(id, "status", bulkStatus);
     toast("Status updated for client proposals.", "success");
   };
@@ -85,17 +172,81 @@ export default function ClientsPage() {
       toast("Select follow-up date/time first.", "error");
       return;
     }
+    if (!selected.proposalIds.length) {
+      toast("No proposals linked to this client.", "error");
+      return;
+    }
     for (const id of selected.proposalIds) await updateProposal(id, "followUpAt", bulkFollowAt);
     toast("Follow-up scheduled for client.", "success");
   };
 
   const deleteClient = async () => {
     if (!selected) return;
-    const ok = await confirm("This will delete all proposals under this client.", "Delete client and proposals?");
+    const ok = await confirm(
+      selected.proposalIds.length
+        ? "This will delete all proposals under this client."
+        : "This will delete the manually added client record.",
+      selected.proposalIds.length ? "Delete client and proposals?" : "Delete manual client?",
+    );
     if (!ok) return;
+
+    if (selected.profileId) {
+      const { error } = await supabase.from("client_profiles").delete().eq("id", selected.profileId);
+      if (error) {
+        toast(error.message || "Unable to delete client profile.", "error");
+        return;
+      }
+      setManualClients((curr) => curr.filter((c) => c.id !== selected.profileId));
+    }
+
     for (const id of selected.proposalIds) await deleteProposal(id);
-    toast("Client proposals deleted.", "success");
+    toast(selected.proposalIds.length ? "Client proposals deleted." : "Client deleted.", "success");
     setMobileShowDetail(false);
+  };
+
+  const addClientManually = async () => {
+    const name = newClientName.trim();
+    const email = newClientEmail.trim();
+    const country = newClientCountry.trim();
+
+    if (!name) {
+      toast("Client name is required.", "error");
+      return;
+    }
+    if (!session?.user?.id) {
+      toast("You must be signed in.", "error");
+      return;
+    }
+
+    setSavingClient(true);
+    const { data, error } = await supabase
+      .from("client_profiles")
+      .insert([{ user_id: session.user.id, name, email, country }])
+      .select("id, name, email, country")
+      .single();
+    setSavingClient(false);
+
+    if (error || !data) {
+      toast(error?.message || "Unable to add client.", "error");
+      return;
+    }
+
+    const manualClient = {
+      id: Number((data as Record<string, unknown>).id ?? 0),
+      name: String((data as Record<string, unknown>).name ?? ""),
+      email: String((data as Record<string, unknown>).email ?? ""),
+      country: String((data as Record<string, unknown>).country ?? ""),
+    };
+    setManualClients((curr) => [manualClient, ...curr]);
+
+    const nextKey = (email || name).toLowerCase();
+    setSelectedClientKey(nextKey);
+    setMobileShowDetail(true);
+    setAddClientOpen(false);
+    setNewClientName("");
+    setNewClientEmail("");
+    setNewClientCountry("");
+    toast("Client added.", "success");
   };
 
   if (!session) {
@@ -118,7 +269,6 @@ export default function ClientsPage() {
           gap: 12px;
         }
 
-        /* Hero */
         .cp-hero {
           background: var(--bg-soft);
           border: 1px solid var(--border);
@@ -150,7 +300,6 @@ export default function ClientsPage() {
           color: var(--muted);
         }
 
-        /* Layout */
         .cp-layout {
           display: grid;
           grid-template-columns: 300px 1fr;
@@ -158,7 +307,6 @@ export default function ClientsPage() {
           align-items: start;
         }
 
-        /* Sidebar */
         .cp-sidebar {
           background: var(--bg-soft);
           border: 1px solid var(--border);
@@ -232,7 +380,6 @@ export default function ClientsPage() {
           flex-shrink: 0;
         }
 
-        /* Detail panel */
         .cp-detail {
           background: var(--bg-soft);
           border: 1px solid var(--border);
@@ -284,7 +431,6 @@ export default function ClientsPage() {
           background: color-mix(in srgb, var(--danger) 8%, transparent);
         }
 
-        /* Social chips */
         .cp-socials { display: flex; gap: 8px; flex-wrap: wrap; }
         .cp-chip {
           display: inline-flex;
@@ -305,7 +451,6 @@ export default function ClientsPage() {
           color: var(--primary);
         }
 
-        /* Bulk actions */
         .cp-bulk {
           background: var(--bg-elev);
           border: 1px solid var(--border);
@@ -351,7 +496,6 @@ export default function ClientsPage() {
           min-width: 180px;
         }
 
-        /* Table */
         .cp-table-wrap {
           border: 1px solid var(--border);
           border-radius: 12px;
@@ -398,7 +542,6 @@ export default function ClientsPage() {
           border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
         }
 
-        /* Mobile back button */
         .cp-back-btn {
           display: none;
           align-items: center;
@@ -413,14 +556,12 @@ export default function ClientsPage() {
           margin-bottom: 4px;
         }
 
-        /* Empty state */
         .cp-empty {
           color: var(--muted);
           font-size: 13px;
           padding: 8px 0;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
           .cp-layout {
             grid-template-columns: 1fr;
@@ -444,19 +585,22 @@ export default function ClientsPage() {
       <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
         <AppHeader />
         <main className="cp-main">
-
-          {/* Hero */}
           <section className="cp-hero">
-            <h1>Clients</h1>
-            <p>Select a client to open details and run actions.</p>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <div>
+                <h1>Clients</h1>
+                <p>Select a client to open details and run actions.</p>
+              </div>
+              <button onClick={() => setAddClientOpen(true)} className="cp-action-btn" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <FaUserPlus size={12} /> Add Client
+              </button>
+            </div>
           </section>
 
-          {loading ? (
+          {loading || manualLoading ? (
             <div className="cp-empty">Loading clients...</div>
           ) : (
             <section className="cp-layout">
-
-              {/* Sidebar */}
               <div className={`cp-sidebar${mobileShowDetail ? " mobile-hidden" : ""}`}>
                 <div className="cp-sidebar-label">
                   {clients.length} Client{clients.length !== 1 ? "s" : ""}
@@ -480,10 +624,7 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* Detail */}
               <div className={`cp-detail${!mobileShowDetail ? " mobile-hidden" : ""}`} style={{ display: !selected && !mobileShowDetail ? "none" : undefined }}>
-
-                {/* Mobile back */}
                 <button className="cp-back-btn" onClick={() => setMobileShowDetail(false)}>
                   <FaChevronLeft size={11} /> All Clients
                 </button>
@@ -492,7 +633,6 @@ export default function ClientsPage() {
 
                 {selected && (
                   <>
-                    {/* Header */}
                     <div className="cp-detail-header">
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div className="cp-detail-avatar">{getInitials(selected.name)}</div>
@@ -500,7 +640,7 @@ export default function ClientsPage() {
                           <div className="cp-detail-name">{selected.name}</div>
                           <div className="cp-detail-sub">
                             {selected.email || "No email"}
-                            {selected.country ? ` · ${selected.country}` : ""}
+                            {selected.country ? ` � ${selected.country}` : ""}
                           </div>
                         </div>
                       </div>
@@ -509,7 +649,6 @@ export default function ClientsPage() {
                       </button>
                     </div>
 
-                    {/* Socials */}
                     <div className="cp-socials">
                       {selected.socials.linkedin && (
                         <a href={normalizeLink(selected.socials.linkedin)} target="_blank" rel="noreferrer" className="cp-chip">
@@ -533,35 +672,39 @@ export default function ClientsPage() {
                       )}
                     </div>
 
-                    {/* Bulk Actions */}
                     <div className="cp-bulk">
                       <div className="cp-bulk-label">Bulk Actions</div>
-                      <div className="cp-bulk-row">
-                        <CustomDropdown
-                          value={bulkStatus}
-                          onChange={setBulkStatus}
-                          options={STATUSES.map((s) => ({ value: s, label: s }))}
-                          width={180}
-                          placeholder="Set status"
-                        />
-                        <button onClick={() => void setStatusForClient()} className="cp-action-btn">
-                          Apply Status
-                        </button>
-                      </div>
-                      <div className="cp-bulk-row">
-                        <input
-                          type="datetime-local"
-                          value={bulkFollowAt}
-                          onChange={(e) => setBulkFollowAt(e.target.value)}
-                          className="cp-input"
-                        />
-                        <button onClick={() => void scheduleForClient()} className="cp-action-btn">
-                          Schedule Follow Up
-                        </button>
-                      </div>
+                      {selected.proposalIds.length ? (
+                        <>
+                          <div className="cp-bulk-row">
+                            <CustomDropdown
+                              value={bulkStatus}
+                              onChange={setBulkStatus}
+                              options={STATUSES.map((s) => ({ value: s, label: s }))}
+                              width={180}
+                              placeholder="Set status"
+                            />
+                            <button onClick={() => void setStatusForClient()} className="cp-action-btn">
+                              Apply Status
+                            </button>
+                          </div>
+                          <div className="cp-bulk-row">
+                            <input
+                              type="datetime-local"
+                              value={bulkFollowAt}
+                              onChange={(e) => setBulkFollowAt(e.target.value)}
+                              className="cp-input"
+                            />
+                            <button onClick={() => void scheduleForClient()} className="cp-action-btn">
+                              Schedule Follow Up
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="cp-empty" style={{ padding: 0 }}>No proposals linked yet. Add proposals for this client from Home.</div>
+                      )}
                     </div>
 
-                    {/* Proposals Table */}
                     <div className="cp-table-wrap">
                       <table className="cp-table">
                         <thead>
@@ -572,7 +715,7 @@ export default function ClientsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selected.proposals.map((p) => (
+                          {selected.proposals.length ? selected.proposals.map((p) => (
                             <tr key={p.id}>
                               <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {p.title}
@@ -582,21 +725,59 @@ export default function ClientsPage() {
                               </td>
                               <td style={{ whiteSpace: "nowrap" }}>{p.dateSent}</td>
                               <td style={{ whiteSpace: "nowrap", color: "var(--muted)" }}>
-                                {p.followUpAt ? new Date(p.followUpAt).toLocaleString() : "—"}
+                                {p.followUpAt ? new Date(p.followUpAt).toLocaleString() : "-"}
                               </td>
                             </tr>
-                          ))}
+                          )) : (
+                            <tr>
+                              <td colSpan={4} style={{ color: "var(--muted)" }}>No proposals linked to this client yet.</td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
                   </>
                 )}
               </div>
-
             </section>
           )}
         </main>
       </div>
+
+      {addClientOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.58)", display: "grid", placeItems: "center", zIndex: 160, padding: 16 }}>
+          <div style={{ width: "100%", maxWidth: 460, background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>Add Client Manually</div>
+              <button onClick={() => setAddClientOpen(false)} style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: 8, padding: "4px 8px", cursor: "pointer" }}>X</button>
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Name</label>
+                <input value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Client name" className="cp-input" style={{ width: "100%" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Email (optional)</label>
+                <input value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} type="email" placeholder="client@email.com" className="cp-input" style={{ width: "100%" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Country (optional)</label>
+                <input value={newClientCountry} onChange={(e) => setNewClientCountry(e.target.value)} placeholder="Country" className="cp-input" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <button onClick={() => setAddClientOpen(false)} className="cp-danger-btn" style={{ color: "var(--muted)", borderColor: "var(--border)" }}>
+                Cancel
+              </button>
+              <button onClick={() => void addClientManually()} className="cp-action-btn" disabled={savingClient} style={{ opacity: savingClient ? 0.7 : 1 }}>
+                {savingClient ? "Adding..." : "Add Client"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

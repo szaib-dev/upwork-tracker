@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { FaBars, FaBell, FaChartLine, FaMoon, FaPlus, FaRegCalendarAlt, FaSun, FaTimes, FaUsers } from "react-icons/fa";
+import { FaBars, FaBell, FaChartLine, FaMoon, FaPlus, FaRegCalendarAlt, FaSun, FaTimes, FaUserCircle, FaUsers } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
@@ -13,7 +13,6 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
   const { session } = useAuth();
   const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
-  const userEmail = session?.user?.email || "";
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -31,11 +30,6 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
         <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <Link href="/" style={{ fontSize: 20, fontWeight: 800, textDecoration: "none" }} className="brand-link">Proposal<span style={{ color: "var(--primary)" }}>Tracker</span></Link>
-            {userEmail && (
-              <div className="xs-email" style={{ marginTop: 4, fontSize: 11, color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 999, padding: "2px 8px", width: "fit-content", maxWidth: "52vw", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {userEmail}
-              </div>
-            )}
           </div>
 
           <div style={{ display: "none", gap: 8, alignItems: "center" }} className="desktop-nav">
@@ -43,6 +37,9 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
             <Link href="/progress" style={topBtn} className="top-btn">Months</Link>
             <Link href="/clients" style={topBtn} className="top-btn">Clients</Link>
             <Link href="/follow-up" style={topBtn} className="top-btn">Follow Up</Link>
+            <Link href="/profile" style={topBtn} className="top-btn" aria-label="Profile" title="Profile">
+              <FaUserCircle />
+            </Link>
             {session?.user?.id && <HeaderShareButton userId={session.user.id} className="top-btn" />}
             <button onClick={toggleTheme} aria-label="Toggle theme" style={topBtn} className="top-btn">
               {theme === "dark" ? <FaSun /> : <FaMoon />}
@@ -53,6 +50,9 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
 
           <div className="mobile-actions" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             {session?.user?.id && <HeaderShareButton userId={session.user.id} className="mobile-icon-btn top-btn" />}
+            <Link href="/profile" style={mobileBtn} className="mobile-icon-btn top-btn" aria-label="Profile" title="Profile">
+              <FaUserCircle />
+            </Link>
             {onAddProposal && (
               <button onClick={onAddProposal} style={mobileBtn} className="mobile-icon-btn top-btn" aria-label="Add proposal" title="Add proposal">
                 <FaPlus />
@@ -77,6 +77,7 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
             <Link href="/progress" style={sideLink} className="side-link" onClick={() => setMenuOpen(false)}><FaRegCalendarAlt /> Months</Link>
             <Link href="/clients" style={sideLink} className="side-link" onClick={() => setMenuOpen(false)}><FaUsers /> Clients</Link>
             <Link href="/follow-up" style={sideLink} className="side-link" onClick={() => setMenuOpen(false)}><FaBell /> Follow Up</Link>
+            <Link href="/profile" style={sideLink} className="side-link" onClick={() => setMenuOpen(false)}><FaUserCircle /> Profile</Link>
             <button onClick={() => { toggleTheme(); setMenuOpen(false); }} style={sideBtn} className="side-btn">{theme === "dark" ? "Light Mode" : "Dark Mode"}</button>
             <button onClick={() => void handleLogout()} style={sideBtn} className="side-btn">Logout</button>
           </div>
@@ -84,7 +85,6 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
       )}
 
       <style>{`
-        .xs-email { display: none; }
         .top-btn:hover {
           background: color-mix(in srgb, var(--bg-elev) 80%, var(--primary) 20%);
           border-color: color-mix(in srgb, var(--border) 65%, var(--primary) 35%);
@@ -105,11 +105,10 @@ export default function AppHeader({ onAddProposal }: { onAddProposal?: () => voi
           .desktop-nav { display: inline-flex !important; }
           .mobile-menu-btn { display: none !important; }
           .mobile-actions { display: none !important; }
-          .xs-email { display: inline-flex !important; }
         }
         @media (max-width: 900px) {
           .brand-link { font-size: 16px !important; }
-          .mobile-icon-btn { width: 34px !important; height: 34px !important; padding: 0 !important; font-size: 14px !important; }
+          .mobile-icon-btn { width: 36px !important; height: 36px !important; padding: 0 !important; font-size: 14px !important; }
         }
       `}</style>
     </>
@@ -125,7 +124,9 @@ const topBtn: React.CSSProperties = {
   border: "1px solid var(--border)",
   color: "var(--text)",
   borderRadius: 9,
-  padding: "7px 10px",
+  height: 36,
+  minWidth: 36,
+  padding: "0 10px",
   fontSize: 12,
   textDecoration: "none",
   cursor: "pointer",
@@ -157,8 +158,8 @@ const sideBtn: React.CSSProperties = {
 
 const mobileBtn: React.CSSProperties = {
   ...topBtn,
-  width: 34,
-  height: 34,
+  width: 36,
+  height: 36,
   padding: 0,
   fontSize: 14,
 };
