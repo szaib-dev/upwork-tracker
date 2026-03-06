@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ProposalExpanded from "./ProposalExpanded";
 import { STATUSES, STATUS_COLORS } from "./Filters";
 import { Proposal } from "@/lib/types/proposal";
@@ -22,22 +22,70 @@ function SmallToggle({ value, onChange }: { value: boolean; onChange: (next: boo
 
 function StatusBadge({ status, onChange }: { status: Proposal["status"]; onChange: (next: Proposal["status"]) => void }) {
   const [open, setOpen] = useState(false);
+  const [hoverTrigger, setHoverTrigger] = useState(false);
+  const [hoverItem, setHoverItem] = useState<Proposal["status"] | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const c = STATUS_COLORS[status] || STATUS_COLORS.Sent;
+
+  useEffect(() => {
+    const onDocDown = (event: MouseEvent) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, []);
+
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div ref={rootRef} style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={(e) => {
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        style={{ background: c.bg, color: c.text, border: `1px solid ${c.dot}55`, borderRadius: 6, padding: "3px 8px", fontSize: 12, cursor: "pointer" }}
+        onMouseEnter={() => setHoverTrigger(true)}
+        onMouseLeave={() => setHoverTrigger(false)}
+        style={{
+          background: hoverTrigger ? `color-mix(in srgb, ${c.bg} 72%, ${c.dot} 28%)` : c.bg,
+          color: c.text,
+          border: `1px solid ${hoverTrigger ? `${c.dot}aa` : `${c.dot}55`}`,
+          borderRadius: 6,
+          padding: "3px 8px",
+          fontSize: 12,
+          cursor: "pointer",
+          transition: "background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease",
+          transform: hoverTrigger ? "translateY(-1px)" : "none",
+        }}
       >
         {status}
       </button>
       {open && (
         <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 100, background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 8, minWidth: 120 }}>
           {STATUSES.map((s) => (
-            <button key={s} onClick={(e) => { e.stopPropagation(); onChange(s); setOpen(false); }} style={{ display: "block", width: "100%", background: "transparent", color: STATUS_COLORS[s].text, border: "none", padding: "7px 10px", textAlign: "left", cursor: "pointer", fontSize: 12 }}>
+            <button
+              key={s}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(s);
+                setOpen(false);
+              }}
+              onMouseEnter={() => setHoverItem(s)}
+              onMouseLeave={() => setHoverItem(null)}
+              style={{
+                display: "block",
+                width: "100%",
+                background: hoverItem === s ? `color-mix(in srgb, ${STATUS_COLORS[s].bg} 74%, var(--bg-elev) 26%)` : "transparent",
+                color: STATUS_COLORS[s].text,
+                border: "none",
+                padding: "7px 10px",
+                textAlign: "left",
+                cursor: "pointer",
+                fontSize: 12,
+                transition: "background-color 0.14s ease",
+              }}
+            >
               {s}
             </button>
           ))}

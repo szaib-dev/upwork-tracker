@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { FaEnvelope, FaGlobe, FaLinkedin, FaTwitter, FaTrash } from "react-icons/fa";
+import { FaEnvelope, FaGlobe, FaLinkedin, FaTwitter, FaTrash, FaChevronLeft } from "react-icons/fa";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { useProposals } from "@/hooks/proposal";
@@ -25,6 +25,10 @@ function normalizeLink(raw: string) {
   return `https://${raw}`;
 }
 
+function getInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+}
+
 export default function ClientsPage() {
   const { session } = useAuth();
   const { proposals, loading, updateProposal, deleteProposal } = useProposals(session?.user?.id);
@@ -33,6 +37,7 @@ export default function ClientsPage() {
   const [selectedClientKey, setSelectedClientKey] = useState("");
   const [bulkStatus, setBulkStatus] = useState<string>("Sent");
   const [bulkFollowAt, setBulkFollowAt] = useState("");
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   const clients = useMemo<ClientDetail[]>(() => {
     const map: Record<string, ClientDetail> = {};
@@ -59,7 +64,15 @@ export default function ClientsPage() {
     return Object.values(map).sort((a, b) => b.proposalIds.length - a.proposalIds.length);
   }, [proposals]);
 
-  const selected = useMemo(() => clients.find((c) => c.key === selectedClientKey) ?? clients[0] ?? null, [clients, selectedClientKey]);
+  const selected = useMemo(
+    () => clients.find((c) => c.key === selectedClientKey) ?? clients[0] ?? null,
+    [clients, selectedClientKey],
+  );
+
+  const handleSelectClient = (key: string) => {
+    setSelectedClientKey(key);
+    setMobileShowDetail(true);
+  };
 
   const setStatusForClient = async () => {
     if (!selected) return;
@@ -82,103 +95,508 @@ export default function ClientsPage() {
     if (!ok) return;
     for (const id of selected.proposalIds) await deleteProposal(id);
     toast("Client proposals deleted.", "success");
+    setMobileShowDetail(false);
   };
 
-  if (!session) return <div style={emptyState}>Please sign in first.</div>;
+  if (!session) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)", color: "var(--text)" }}>
+        Please sign in first.
+      </div>
+    );
+  }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <AppHeader />
-      <main style={{ width: "100%", maxWidth: 1240, margin: "0 auto", padding: "14px 12px 24px", display: "grid", gap: 12 }}>
-        <section style={panel}>
-          <h1 style={{ margin: 0, fontSize: 28 }}>Clients</h1>
-          <div style={{ color: "var(--muted)", marginTop: 4, fontSize: 13 }}>Select a client to open details and run actions.</div>
-        </section>
+    <>
+      <style>{`
+        .cp-main {
+          width: 100%;
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 14px 12px 32px;
+          display: grid;
+          gap: 12px;
+        }
 
-        {loading ? (
-          <div style={{ color: "var(--muted)" }}>Loading clients...</div>
-        ) : (
-          <section style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 12 }}>
-            <div style={{ ...panel, maxHeight: "72vh", overflowY: "auto" }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Client List</div>
-              <div style={{ display: "grid", gap: 8 }}>
-                {clients.map((c) => (
-                  <button key={c.key} onClick={() => setSelectedClientKey(c.key)} style={{ textAlign: "left", background: selected?.key === c.key ? "var(--primary-soft)" : "var(--bg-elev)", border: `1px solid ${selected?.key === c.key ? "var(--primary)" : "var(--border)"}`, color: "var(--text)", borderRadius: 10, padding: "9px 10px", cursor: "pointer" }}>
-                    <div style={{ fontWeight: 700 }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{c.email || "No email"} | {c.proposalIds.length} proposals</div>
-                  </button>
-                ))}
-                {clients.length === 0 && <div style={{ color: "var(--muted)", fontSize: 13 }}>No clients yet.</div>}
-              </div>
-            </div>
+        /* Hero */
+        .cp-hero {
+          background: var(--bg-soft);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 18px 20px;
+          position: relative;
+          overflow: hidden;
+        }
+        .cp-hero::after {
+          content: '';
+          position: absolute;
+          top: -60px;
+          right: -60px;
+          width: 200px;
+          height: 200px;
+          background: radial-gradient(circle, color-mix(in srgb, var(--primary) 10%, transparent), transparent 70%);
+          pointer-events: none;
+        }
+        .cp-hero h1 {
+          margin: 0;
+          font-size: clamp(22px, 4vw, 30px);
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          line-height: 1.15;
+        }
+        .cp-hero p {
+          margin: 5px 0 0;
+          font-size: 13px;
+          color: var(--muted);
+        }
 
-            <div style={panel}>
-              {!selected && <div style={{ color: "var(--muted)" }}>Select a client to view details.</div>}
-              {selected && (
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontSize: 24, fontWeight: 800 }}>{selected.name}</div>
-                      <div style={{ color: "var(--muted)", fontSize: 13 }}>{selected.email || "No email"} {selected.country ? `| ${selected.country}` : ""}</div>
-                    </div>
-                    <button onClick={() => void deleteClient()} style={dangerBtn}><FaTrash /> Delete Client Data</button>
-                  </div>
+        /* Layout */
+        .cp-layout {
+          display: grid;
+          grid-template-columns: 300px 1fr;
+          gap: 12px;
+          align-items: start;
+        }
 
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {selected.socials.linkedin && <a href={normalizeLink(selected.socials.linkedin)} target="_blank" rel="noreferrer" style={linkChip}><FaLinkedin /> LinkedIn</a>}
-                    {selected.socials.twitter && <a href={normalizeLink(selected.socials.twitter)} target="_blank" rel="noreferrer" style={linkChip}><FaTwitter /> Twitter</a>}
-                    {selected.socials.website && <a href={normalizeLink(selected.socials.website)} target="_blank" rel="noreferrer" style={linkChip}><FaGlobe /> Website</a>}
-                    {selected.email && <a href={`mailto:${selected.email}`} style={linkChip}><FaEnvelope /> Email</a>}
-                  </div>
+        /* Sidebar */
+        .cp-sidebar {
+          background: var(--bg-soft);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 14px;
+          max-height: 76vh;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+        }
+        .cp-sidebar-label {
+          font-size: 10px;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-weight: 600;
+          margin-bottom: 10px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--border);
+        }
+        .cp-client-btn {
+          width: 100%;
+          text-align: left;
+          background: var(--bg-elev);
+          border: 1px solid var(--border);
+          color: var(--text);
+          border-radius: 12px;
+          padding: 10px 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: border-color 0.15s, background 0.15s, transform 0.1s;
+          margin-bottom: 6px;
+        }
+        .cp-client-btn:last-child { margin-bottom: 0; }
+        .cp-client-btn:hover {
+          border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+          transform: translateX(2px);
+        }
+        .cp-client-btn.active {
+          background: var(--primary-soft);
+          border-color: var(--primary);
+        }
+        .cp-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: color-mix(in srgb, var(--primary) 15%, var(--bg-elev));
+          border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 800;
+          color: var(--primary);
+          flex-shrink: 0;
+          letter-spacing: 0.02em;
+        }
+        .cp-client-name { font-weight: 700; font-size: 14px; line-height: 1.2; }
+        .cp-client-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .cp-proposal-badge {
+          margin-left: auto;
+          font-size: 10px;
+          font-weight: 700;
+          background: color-mix(in srgb, var(--primary) 12%, var(--bg));
+          border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
+          color: var(--primary);
+          border-radius: 999px;
+          padding: 2px 8px;
+          flex-shrink: 0;
+        }
 
-                  <div style={{ background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
-                    <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Bulk Actions</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <CustomDropdown value={bulkStatus} onChange={setBulkStatus} options={STATUSES.map((s) => ({ value: s, label: s }))} width={180} placeholder="Set status" />
-                      <button onClick={() => void setStatusForClient()} style={actionBtn}>Apply Status</button>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <input type="datetime-local" value={bulkFollowAt} onChange={(e) => setBulkFollowAt(e.target.value)} style={input} />
-                      <button onClick={() => void scheduleForClient()} style={actionBtn}>Schedule Follow Up</button>
-                    </div>
-                  </div>
+        /* Detail panel */
+        .cp-detail {
+          background: var(--bg-soft);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 16px;
+          display: grid;
+          gap: 14px;
+        }
+        .cp-detail-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .cp-detail-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: color-mix(in srgb, var(--primary) 15%, var(--bg-elev));
+          border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          font-weight: 800;
+          color: var(--primary);
+          flex-shrink: 0;
+        }
+        .cp-detail-name { font-size: clamp(18px, 3vw, 24px); font-weight: 800; letter-spacing: -0.02em; }
+        .cp-detail-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "var(--bg-elev)" }}>
-                          {["Proposal", "Status", "Date", "Follow Up"].map((head) => (
-                            <th key={head} style={{ textAlign: "left", padding: "9px 10px", fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{head}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selected.proposals.map((p) => (
-                          <tr key={p.id} style={{ borderTop: "1px solid var(--border)" }}>
-                            <td style={cell}>{p.title}</td>
-                            <td style={cell}>{p.status}</td>
-                            <td style={cell}>{p.dateSent}</td>
-                            <td style={cell}>{p.followUpAt ? new Date(p.followUpAt).toLocaleString() : "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
+        .cp-danger-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          background: transparent;
+          border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--border));
+          color: var(--danger);
+          border-radius: 10px;
+          padding: 8px 12px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s;
+          white-space: nowrap;
+        }
+        .cp-danger-btn:hover {
+          background: color-mix(in srgb, var(--danger) 8%, transparent);
+        }
+
+        /* Social chips */
+        .cp-socials { display: flex; gap: 8px; flex-wrap: wrap; }
+        .cp-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--bg-elev);
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          color: var(--text);
+          padding: 6px 12px;
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 500;
+          transition: border-color 0.15s, color 0.15s;
+        }
+        .cp-chip:hover {
+          border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+          color: var(--primary);
+        }
+
+        /* Bulk actions */
+        .cp-bulk {
+          background: var(--bg-elev);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px 14px;
+          display: grid;
+          gap: 10px;
+        }
+        .cp-bulk-label {
+          font-size: 10px;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-weight: 600;
+        }
+        .cp-bulk-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .cp-action-btn {
+          background: var(--primary-soft);
+          border: 1px solid var(--primary);
+          color: var(--primary);
+          border-radius: 9px;
+          padding: 8px 14px;
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          transition: opacity 0.15s;
+          white-space: nowrap;
+        }
+        .cp-action-btn:hover { opacity: 0.82; }
+        .cp-input {
+          background: var(--bg-soft);
+          border: 1px solid var(--border);
+          border-radius: 9px;
+          color: var(--text);
+          padding: 8px 10px;
+          font-size: 13px;
+          flex: 1;
+          min-width: 180px;
+        }
+
+        /* Table */
+        .cp-table-wrap {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+          overflow-x: auto;
+        }
+        .cp-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 480px;
+        }
+        .cp-table thead tr {
+          background: var(--bg-elev);
+        }
+        .cp-table th {
+          text-align: left;
+          padding: 10px 12px;
+          font-size: 10px;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-weight: 700;
+        }
+        .cp-table tbody tr {
+          border-top: 1px solid var(--border);
+          transition: background 0.1s;
+        }
+        .cp-table tbody tr:hover {
+          background: color-mix(in srgb, var(--primary) 4%, transparent);
+        }
+        .cp-table td {
+          padding: 10px 12px;
+          font-size: 13px;
+          color: var(--text);
+        }
+        .cp-status-pill {
+          display: inline-block;
+          padding: 2px 9px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+          background: color-mix(in srgb, var(--primary) 12%, var(--bg-elev));
+          color: var(--primary);
+          border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
+        }
+
+        /* Mobile back button */
+        .cp-back-btn {
+          display: none;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--text);
+          border-radius: 9px;
+          padding: 7px 12px;
+          font-size: 13px;
+          cursor: pointer;
+          margin-bottom: 4px;
+        }
+
+        /* Empty state */
+        .cp-empty {
+          color: var(--muted);
+          font-size: 13px;
+          padding: 8px 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .cp-layout {
+            grid-template-columns: 1fr;
+          }
+          .cp-sidebar {
+            max-height: none;
+          }
+          .cp-sidebar.mobile-hidden { display: none; }
+          .cp-detail.mobile-hidden { display: none; }
+          .cp-back-btn { display: inline-flex; }
+        }
+
+        @media (max-width: 480px) {
+          .cp-main { padding: 10px 10px 24px; }
+          .cp-hero { padding: 14px; }
+          .cp-detail { padding: 12px; }
+          .cp-bulk { padding: 10px 12px; }
+        }
+      `}</style>
+
+      <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+        <AppHeader />
+        <main className="cp-main">
+
+          {/* Hero */}
+          <section className="cp-hero">
+            <h1>Clients</h1>
+            <p>Select a client to open details and run actions.</p>
           </section>
-        )}
-      </main>
-    </div>
+
+          {loading ? (
+            <div className="cp-empty">Loading clients...</div>
+          ) : (
+            <section className="cp-layout">
+
+              {/* Sidebar */}
+              <div className={`cp-sidebar${mobileShowDetail ? " mobile-hidden" : ""}`}>
+                <div className="cp-sidebar-label">
+                  {clients.length} Client{clients.length !== 1 ? "s" : ""}
+                </div>
+                <div>
+                  {clients.map((c) => (
+                    <button
+                      key={c.key}
+                      className={`cp-client-btn${selected?.key === c.key ? " active" : ""}`}
+                      onClick={() => handleSelectClient(c.key)}
+                    >
+                      <div className="cp-avatar">{getInitials(c.name)}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="cp-client-name">{c.name}</div>
+                        <div className="cp-client-meta">{c.email || "No email"}</div>
+                      </div>
+                      <div className="cp-proposal-badge">{c.proposalIds.length}</div>
+                    </button>
+                  ))}
+                  {clients.length === 0 && <div className="cp-empty">No clients yet.</div>}
+                </div>
+              </div>
+
+              {/* Detail */}
+              <div className={`cp-detail${!mobileShowDetail ? " mobile-hidden" : ""}`} style={{ display: !selected && !mobileShowDetail ? "none" : undefined }}>
+
+                {/* Mobile back */}
+                <button className="cp-back-btn" onClick={() => setMobileShowDetail(false)}>
+                  <FaChevronLeft size={11} /> All Clients
+                </button>
+
+                {!selected && <div className="cp-empty">Select a client to view details.</div>}
+
+                {selected && (
+                  <>
+                    {/* Header */}
+                    <div className="cp-detail-header">
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div className="cp-detail-avatar">{getInitials(selected.name)}</div>
+                        <div>
+                          <div className="cp-detail-name">{selected.name}</div>
+                          <div className="cp-detail-sub">
+                            {selected.email || "No email"}
+                            {selected.country ? ` · ${selected.country}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => void deleteClient()} className="cp-danger-btn">
+                        <FaTrash size={12} /> Delete Client
+                      </button>
+                    </div>
+
+                    {/* Socials */}
+                    <div className="cp-socials">
+                      {selected.socials.linkedin && (
+                        <a href={normalizeLink(selected.socials.linkedin)} target="_blank" rel="noreferrer" className="cp-chip">
+                          <FaLinkedin size={12} /> LinkedIn
+                        </a>
+                      )}
+                      {selected.socials.twitter && (
+                        <a href={normalizeLink(selected.socials.twitter)} target="_blank" rel="noreferrer" className="cp-chip">
+                          <FaTwitter size={12} /> Twitter
+                        </a>
+                      )}
+                      {selected.socials.website && (
+                        <a href={normalizeLink(selected.socials.website)} target="_blank" rel="noreferrer" className="cp-chip">
+                          <FaGlobe size={12} /> Website
+                        </a>
+                      )}
+                      {selected.email && (
+                        <a href={`mailto:${selected.email}`} className="cp-chip">
+                          <FaEnvelope size={12} /> Email
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Bulk Actions */}
+                    <div className="cp-bulk">
+                      <div className="cp-bulk-label">Bulk Actions</div>
+                      <div className="cp-bulk-row">
+                        <CustomDropdown
+                          value={bulkStatus}
+                          onChange={setBulkStatus}
+                          options={STATUSES.map((s) => ({ value: s, label: s }))}
+                          width={180}
+                          placeholder="Set status"
+                        />
+                        <button onClick={() => void setStatusForClient()} className="cp-action-btn">
+                          Apply Status
+                        </button>
+                      </div>
+                      <div className="cp-bulk-row">
+                        <input
+                          type="datetime-local"
+                          value={bulkFollowAt}
+                          onChange={(e) => setBulkFollowAt(e.target.value)}
+                          className="cp-input"
+                        />
+                        <button onClick={() => void scheduleForClient()} className="cp-action-btn">
+                          Schedule Follow Up
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Proposals Table */}
+                    <div className="cp-table-wrap">
+                      <table className="cp-table">
+                        <thead>
+                          <tr>
+                            {["Proposal", "Status", "Date Sent", "Follow Up"].map((h) => (
+                              <th key={h}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.proposals.map((p) => (
+                            <tr key={p.id}>
+                              <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {p.title}
+                              </td>
+                              <td>
+                                <span className="cp-status-pill">{p.status}</span>
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>{p.dateSent}</td>
+                              <td style={{ whiteSpace: "nowrap", color: "var(--muted)" }}>
+                                {p.followUpAt ? new Date(p.followUpAt).toLocaleString() : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+
+            </section>
+          )}
+        </main>
+      </div>
+    </>
   );
 }
-
-const panel: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 12 };
-const input: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", padding: "8px 10px" };
-const actionBtn: React.CSSProperties = { background: "var(--primary-soft)", border: "1px solid var(--primary)", color: "var(--primary)", borderRadius: 8, padding: "8px 10px", fontWeight: 700, cursor: "pointer" };
-const dangerBtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid color-mix(in srgb, var(--danger) 65%, var(--border))", color: "var(--danger)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" };
-const linkChip: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 999, color: "var(--text)", padding: "6px 10px", textDecoration: "none", fontSize: 13 };
-const cell: React.CSSProperties = { padding: "9px 10px", fontSize: 13, color: "var(--text)" };
-const emptyState: React.CSSProperties = { minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)", color: "var(--text)" };
-

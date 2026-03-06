@@ -62,7 +62,7 @@ export default function Charts({ proposals }: { proposals: Proposal[]; monthOrde
   return (
     <>
       <Section title="Monthly Trend and Funnel">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.7fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.7fr", gap: 14 }} className="charts-grid">
           <div style={{ background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
             {stats.funnel.map((f, i) => {
               const pct = stats.funnel[0].value ? Math.round((f.value / stats.funnel[0].value) * 100) : 0;
@@ -80,7 +80,7 @@ export default function Charts({ proposals }: { proposals: Proposal[]; monthOrde
             })}
           </div>
 
-          <div style={{ background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+          <div style={{ background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }} className="chart-panel">
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={stats.monthly}>
                 <XAxis dataKey="monthLabel" tick={{ fill: "var(--muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -100,6 +100,12 @@ export default function Charts({ proposals }: { proposals: Proposal[]; monthOrde
             </ResponsiveContainer>
           </div>
         </div>
+        <style>{`
+          @media (max-width: 900px) {
+            .charts-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+            .chart-panel { padding: 12px !important; }
+          }
+        `}</style>
       </Section>
     </>
   );

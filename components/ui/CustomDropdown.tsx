@@ -32,7 +32,7 @@ export default function CustomDropdown({ value, options, onChange, width = 240, 
 
   return (
     <div ref={rootRef} style={{ position: "relative", width, maxWidth: "100%" }}>
-      <button type="button" onClick={() => setOpen((x) => !x)} style={triggerBtn}>
+      <button type="button" onClick={() => setOpen((x) => !x)} style={triggerBtn} className="dropdown-trigger">
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{active?.label || placeholder}</span>
         <FaChevronDown style={{ fontSize: 11, color: "var(--muted)" }} />
       </button>
@@ -54,6 +54,7 @@ export default function CustomDropdown({ value, options, onChange, width = 240, 
                   background: selected ? "var(--primary-soft)" : "transparent",
                   color: selected ? "var(--primary)" : "var(--text)",
                 }}
+                className="dropdown-item"
               >
                 {opt.label}
               </button>
@@ -61,6 +62,21 @@ export default function CustomDropdown({ value, options, onChange, width = 240, 
           })}
         </div>
       )}
+      <style>{`
+        .dropdown-trigger,
+        .dropdown-item {
+          transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+        }
+        .dropdown-trigger:hover {
+          background: color-mix(in srgb, var(--bg-elev) 82%, var(--primary-soft) 18%);
+          border-color: color-mix(in srgb, var(--border) 58%, var(--primary) 42%);
+        }
+        .dropdown-item:hover {
+          background: color-mix(in srgb, var(--bg-elev) 76%, var(--primary-soft) 24%) !important;
+          border-color: color-mix(in srgb, var(--border) 70%, var(--primary) 30%);
+          transform: translateX(1px);
+        }
+      `}</style>
     </div>
   );
 }
@@ -78,6 +94,7 @@ const triggerBtn: React.CSSProperties = {
   fontSize: 13,
   padding: "9px 10px",
   cursor: "pointer",
+  transition: "background-color 0.16s ease, border-color 0.16s ease",
 };
 
 const menu: React.CSSProperties = {
@@ -103,5 +120,5 @@ const itemBtn: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 13,
   cursor: "pointer",
+  transition: "background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease",
 };
-

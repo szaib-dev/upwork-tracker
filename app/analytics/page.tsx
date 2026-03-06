@@ -73,17 +73,17 @@ export default function AnalyticsDashboard() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", color: "var(--text)" }}>
       <AppHeader />
-      <main style={{ width: "100%", padding: "12px 12px 24px", display: "grid", gap: 12 }}>
-        <section style={heroCard}>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>Analytics Command Center</div>
-            <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 5 }}>
+      <main style={{ width: "100%", padding: "10px 10px 20px", display: "grid", gap: 10, maxWidth: 1320, margin: "0 auto" }} className="analytics-main">
+        <section style={heroCard} className="analytics-hero">
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }} className="analytics-title">Analytics Command Center</div>
+            <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 5 }} className="analytics-subtitle">
               Advanced metrics, sharing controls, and monthly performance intelligence.
             </div>
           </div>
-          <div style={{ minWidth: 230, display: "grid", gap: 8, justifyItems: "end" }}>
-            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Filter Month</div>
-            <MonthDropdown value={monthFilter} onChange={setMonthFilter} options={monthSelectOptions} width={260} />
+          <div style={{ minWidth: 230, display: "grid", gap: 8, justifyItems: "end" }} className="analytics-filter">
+            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Filter Month</div>
+            <MonthDropdown value={monthFilter} onChange={setMonthFilter} options={monthSelectOptions} width={240} />
           </div>
         </section>
 
@@ -91,7 +91,7 @@ export default function AnalyticsDashboard() {
           <div style={{ color: "var(--muted)" }}>Loading analytics...</div>
         ) : (
           <>
-            <section style={{ ...card, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+            <section style={{ ...card, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8 }}>
               <MiniMetric label="Top Status" value={advanced.topStatus ? `${advanced.topStatus[0]} (${advanced.topStatus[1]})` : "-"} />
               <MiniMetric label="Best Apply Day" value={advanced.bestDay ? `${advanced.bestDay[0]} (${advanced.bestDay[1]})` : "-"} />
               <MiniMetric label="Avg Budget" value={`$${advanced.avgBudget}`} />
@@ -105,18 +105,38 @@ export default function AnalyticsDashboard() {
           </>
         )}
       </main>
+      <style>{`
+        @media (max-width: 900px) {
+          .analytics-main {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            gap: 8px !important;
+          }
+          .analytics-hero {
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+          .analytics-filter {
+            min-width: 100% !important;
+            justify-items: stretch !important;
+          }
+          .analytics-title { font-size: 21px !important; }
+          .analytics-subtitle { font-size: 12px !important; }
+        }
+      `}</style>
     </div>
   );
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--bg-elev) 92%, #fff 8%), var(--bg-elev))", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 12px" }}>
+    <div style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--bg-elev) 92%, #fff 8%), var(--bg-elev))", border: "1px solid var(--border)", borderRadius: 12, padding: "11px" }}>
       <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
       <div style={{ marginTop: 8, fontSize: 20, fontWeight: 700, color: "var(--text)", textRendering: "geometricPrecision" }}>{value}</div>
     </div>
   );
 }
 
-const heroCard: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" };
-const card: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 12 };
+const heroCard: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" };
+const card: React.CSSProperties = { background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 10 };
+

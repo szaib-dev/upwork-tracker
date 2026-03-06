@@ -12,7 +12,7 @@ function splitEmails(raw: string): string[] {
     .filter(Boolean);
 }
 
-export default function HeaderShareButton({ userId }: { userId: string }) {
+export default function HeaderShareButton({ userId, className }: { userId: string; className?: string }) {
   const { creating, createShare } = useAnalyticsShares(userId);
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -45,7 +45,7 @@ export default function HeaderShareButton({ userId }: { userId: string }) {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="Share" title="Share" style={iconBtn}>
+      <button onClick={() => setOpen(true)} aria-label="Share" title="Share" style={iconBtn} className={className}>
         <HiOutlineShare />
       </button>
 
@@ -104,6 +104,7 @@ const iconBtn: React.CSSProperties = {
   height: 34,
   cursor: "pointer",
   fontSize: 18,
+  transition: "background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease",
 };
 
 const field: React.CSSProperties = {
@@ -150,4 +151,3 @@ const ghostBtn: React.CSSProperties = {
   padding: "8px 10px",
   cursor: "pointer",
 };
-

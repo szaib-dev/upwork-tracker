@@ -30,9 +30,9 @@ export default function ProgressPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <AppHeader />
-      <div style={{ padding: 14 }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ border: "1px solid var(--border)", background: "var(--bg-soft)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+      <div style={{ padding: 10 }} className="months-main">
+        <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+          <div style={{ border: "1px solid var(--border)", background: "var(--bg-soft)", borderRadius: 12, padding: 10, marginBottom: 10 }}>
             <label style={{ fontSize: 11, color: "var(--muted)", marginRight: 8 }}>Select month:</label>
             <div style={{ marginTop: 8 }}>
               <CustomDropdown value={selectedMonth} onChange={setSelectedMonth} options={[{ value: "all", label: "All months" }, ...months]} width={260} />
@@ -42,6 +42,16 @@ export default function ProgressPage() {
           {loading ? <div style={{ color: "var(--muted)" }}>Loading...</div> : <ProposalTable filteredProposals={monthFiltered} updateProposal={updateProposal} deleteProposal={deleteProposal} />}
         </div>
       </div>
+      <style>{`
+        @media (max-width: 900px) {
+          .months-main {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            padding-top: 8px !important;
+            padding-bottom: 14px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -97,7 +97,7 @@ export default function Insights({ proposals, monthOrder = "desc" }: { proposals
         Analytics Highlights
       </div>
 
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(4, minmax(180px, 1fr))", marginBottom: 14 }}>
+      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(4, minmax(180px, 1fr))", marginBottom: 14 }} className="insights-grid">
         <InsightCard title="Best Month" value={data.bestMonth?.label ?? "-"} note={data.bestMonth ? `${data.bestMonth.hired} hires, ${data.bestMonth.winRate}% win rate` : "No monthly data yet"} color="var(--success)" />
         <InsightCard title="Monthly Momentum" value={`${monthDelta >= 0 ? "+" : ""}${monthDelta}`} note={data.thisMonth ? `${data.thisMonth.label} vs previous month` : "Need at least 2 months"} color={monthDelta >= 0 ? "var(--primary)" : "var(--danger)"} />
         <InsightCard title="Top Country" value={data.topCountry?.country ?? "-"} note={data.topCountry ? `${data.topCountry.total} proposals, ${data.topCountry.winRate}% win rate` : "No country data yet"} color="#ffd060" />
@@ -107,7 +107,7 @@ export default function Insights({ proposals, monthOrder = "desc" }: { proposals
       <div style={{ background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
         <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Monthly Breakdown</div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
             <thead>
               <tr>
                 {["Month", "Sent", "Hired", "Win Rate", "Connects", "Revenue"].map((head) => (
@@ -132,6 +132,14 @@ export default function Insights({ proposals, monthOrder = "desc" }: { proposals
           </table>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 1100px) {
+          .insights-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)) !important; }
+        }
+        @media (max-width: 700px) {
+          .insights-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+        }
+      `}</style>
     </div>
   );
 }
