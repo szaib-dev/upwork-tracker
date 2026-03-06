@@ -73,7 +73,6 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: AddPropo
       connects: Number(form.connects) || 0,
       status: form.status || "Sent",
       dateSent: form.dateSent || new Date().toISOString().slice(0, 10),
-      followUpAt: form.followUpAt || "",
     });
 
     setSaving(false);
@@ -93,10 +92,7 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: AddPropo
           <button onClick={closeDrawer} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 20, cursor: "pointer" }}>x</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <DrawerField label="Date Sent"><input type="date" value={form.dateSent} onChange={(e) => setForm((f) => ({ ...f, dateSent: e.target.value }))} style={inputStyle} /></DrawerField>
-          <DrawerField label="Follow Up"><input type="datetime-local" value={form.followUpAt} onChange={(e) => setForm((f) => ({ ...f, followUpAt: e.target.value }))} style={inputStyle} /></DrawerField>
-        </div>
+        <DrawerField label="Date Sent"><input type="date" value={form.dateSent} onChange={(e) => setForm((f) => ({ ...f, dateSent: e.target.value }))} style={inputStyle} /></DrawerField>
 
         <DrawerField label="Job URL">
           <input type="url" value={form.jobUrl} onChange={(e) => setForm((f) => ({ ...f, jobUrl: e.target.value }))} onBlur={handleAutoTitle} placeholder="Paste job URL" style={inputStyle} />
@@ -104,6 +100,10 @@ export default function AddProposalDrawer({ closeDrawer, addProposal }: AddPropo
 
         <DrawerField label="Job Title (auto-filled from metadata)">
           <input type="text" value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} placeholder="Optional" style={inputStyle} />
+        </DrawerField>
+
+        <DrawerField label="Country">
+          <input type="text" value={form.clientCountry} onChange={(e) => setForm((f) => ({ ...f, clientCountry: e.target.value }))} placeholder="Client country" style={inputStyle} />
         </DrawerField>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

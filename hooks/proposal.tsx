@@ -220,10 +220,35 @@ export function useProposals(userId?: string | null): HookResult {
   const updateProposal = useCallback(
     async (id: number, field: keyof Proposal, value: unknown) => {
       const nextValue = normalizeUpdate(field, value);
-      setProposals((curr) => curr.map((item) => (item.id === id ? { ...item, [field]: nextValue as never } : item)));
+      let localPatch: Partial<Proposal> = { [field]: nextValue as never };
 
-      const dbField = toDbColumn(field, namingStyleRef.current);
-      const patch = { [dbField]: nextValue };
+      setProposals((curr) =>
+        curr.map((item) => {
+          if (item.id !== id) return item;
+          if (field === "viewed") {
+            const viewedNext = Boolean(nextValue);
+            localPatch = { viewed: viewedNext };
+            if (viewedNext && item.status === "Sent") localPatch.status = "Viewed";
+            if (!viewedNext && item.status === "Viewed") localPatch.status = "Sent";
+            return { ...item, ...localPatch };
+          }
+
+          if (field === "status") {
+            const statusNext = String(nextValue) as Proposal["status"];
+            localPatch = { status: statusNext };
+            if (statusNext === "Viewed") localPatch.viewed = true;
+            if (statusNext === "Sent") localPatch.viewed = false;
+            return { ...item, ...localPatch };
+          }
+
+          return { ...item, ...localPatch };
+        }),
+      );
+
+      const patch: Record<string, unknown> = {};
+      for (const [patchKey, patchValue] of Object.entries(localPatch)) {
+        patch[toDbColumn(patchKey as keyof Proposal, namingStyleRef.current)] = patchValue;
+      }
 
       let query = supabase.from("proposals").update(patch).eq("id", id);
       if (supportsUserScopeRef.current && userId) query = query.eq("user_id", userId);
