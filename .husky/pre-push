@@ -1,0 +1,8 @@
+echo "started.."
+
+pnpx @biomejs/biome format --write
+echo "formating done"
+
+echo "creating build so no crashed happen after push"
+pnpm build
+

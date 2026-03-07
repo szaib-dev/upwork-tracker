@@ -3,12 +3,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SocialsPageRedirect() {
-  const router = useRouter();
+	const router = useRouter();
 
-  useEffect(() => {
-    router.replace("/clients");
-  }, [router]);
+	useEffect(() => {
+		router.replace("/clients");
+	}, [router]);
 
-  return null;
+	return null;
 }
-
