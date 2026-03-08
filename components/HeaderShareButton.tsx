@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
 	HiOutlineClipboardDocument,
 	HiOutlineGlobeAlt,
@@ -73,6 +74,155 @@ export default function HeaderShareButton({
 		await copyToClipboard(link);
 	};
 
+	const modal = (
+		<div style={overlayStyle}>
+			<div onClick={() => setOpen(false)} style={backdropStyle} />
+			<div style={modalStyle}>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+						gap: 8,
+						marginBottom: 12,
+					}}
+				>
+					<div>
+						<div style={{ fontSize: 20, fontWeight: 800 }}>Share Dashboard</div>
+						<div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
+							Create public/private access link.
+						</div>
+					</div>
+					<button onClick={() => setOpen(false)} style={ghostBtn}>
+						Close
+					</button>
+				</div>
+
+				<div style={{ display: "grid", gap: 10 }}>
+					<input
+						value={title}
+						onChange={(e) => setTitle(e.target.value)}
+						placeholder="Link title"
+						style={field}
+					/>
+
+					<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+						<button
+							onClick={() => setVisibility("public")}
+							style={toggleBtn(visibility === "public")}
+						>
+							<HiOutlineGlobeAlt /> Public
+						</button>
+						<button
+							onClick={() => setVisibility("private")}
+							style={toggleBtn(visibility === "private")}
+						>
+							<HiOutlineLockClosed /> Private
+						</button>
+					</div>
+
+					{visibility === "private" && (
+						<div style={chipBox}>
+							<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+								{emails.map((email) => (
+									<span key={email} style={chipStyle}>
+										{email}
+										<button
+											onClick={() => removeEmail(email)}
+											style={chipCloseBtn}
+											aria-label={`Remove ${email}`}
+										>
+											<HiXMark />
+										</button>
+									</span>
+								))}
+								<input
+									value={emailInput}
+									onChange={(e) => setEmailInput(e.target.value)}
+									onKeyDown={(e) => {
+										if (["Enter", " ", ",", ";"].includes(e.key)) {
+											e.preventDefault();
+											if (!emailInput.trim()) return;
+											addEmailsFromRaw(emailInput);
+											setEmailInput("");
+											return;
+										}
+										if (e.key === "Backspace" && !emailInput && emails.length) {
+											removeEmail(emails[emails.length - 1]);
+										}
+									}}
+									onBlur={() => {
+										if (!emailInput.trim()) return;
+										addEmailsFromRaw(emailInput);
+										setEmailInput("");
+									}}
+									onPaste={(e) => {
+										const raw = e.clipboardData.getData("text");
+										if (!raw) return;
+										if (!/[\s,;\n]/.test(raw)) return;
+										e.preventDefault();
+										addEmailsFromRaw(raw);
+									}}
+									placeholder={
+										emails.length
+											? "Add more emails"
+											: "Type email and press space"
+									}
+									style={chipInput}
+								/>
+							</div>
+						</div>
+					)}
+
+					<button
+						onClick={() => void handleCreate()}
+						disabled={creating}
+						style={createBtn}
+					>
+						{creating ? "Creating..." : "Create Link"}
+					</button>
+
+					{createdLink && (
+						<div
+							style={{
+								border: "1px solid var(--border)",
+								background: "var(--bg-elev)",
+								borderRadius: 10,
+								padding: 10,
+							}}
+						>
+							<div
+								style={{
+									fontSize: 11,
+									color: "var(--muted)",
+									textTransform: "uppercase",
+									letterSpacing: "0.08em",
+									marginBottom: 6,
+								}}
+							>
+								Created Link
+							</div>
+							<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+								<input
+									readOnly
+									value={createdLink}
+									style={{ ...field, padding: "8px 10px" }}
+								/>
+								<button
+									onClick={() => void copyToClipboard(createdLink)}
+									style={ghostBtn}
+									title="Copy"
+								>
+									<HiOutlineClipboardDocument />
+								</button>
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+
 	return (
 		<>
 			<button
@@ -84,165 +234,9 @@ export default function HeaderShareButton({
 			>
 				<HiOutlineShare />
 			</button>
-
-			{open && (
-				<div style={overlayStyle}>
-					<div onClick={() => setOpen(false)} style={backdropStyle} />
-					<div style={modalStyle}>
-						<div
-							style={{
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								gap: 8,
-								marginBottom: 12,
-							}}
-						>
-							<div>
-								<div style={{ fontSize: 20, fontWeight: 800 }}>
-									Share Dashboard
-								</div>
-								<div
-									style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}
-								>
-									Create public/private access link.
-								</div>
-							</div>
-							<button onClick={() => setOpen(false)} style={ghostBtn}>
-								Close
-							</button>
-						</div>
-
-						<div style={{ display: "grid", gap: 10 }}>
-							<input
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-								placeholder="Link title"
-								style={field}
-							/>
-
-							<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-								<button
-									onClick={() => setVisibility("public")}
-									style={toggleBtn(visibility === "public")}
-								>
-									<HiOutlineGlobeAlt /> Public
-								</button>
-								<button
-									onClick={() => setVisibility("private")}
-									style={toggleBtn(visibility === "private")}
-								>
-									<HiOutlineLockClosed /> Private
-								</button>
-							</div>
-
-							{visibility === "private" && (
-								<div style={chipBox}>
-									<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-										{emails.map((email) => (
-											<span key={email} style={chipStyle}>
-												{email}
-												<button
-													onClick={() => removeEmail(email)}
-													style={chipCloseBtn}
-													aria-label={`Remove ${email}`}
-												>
-													<HiXMark />
-												</button>
-											</span>
-										))}
-										<input
-											value={emailInput}
-											onChange={(e) => setEmailInput(e.target.value)}
-											onKeyDown={(e) => {
-												if (["Enter", " ", ",", ";"].includes(e.key)) {
-													e.preventDefault();
-													if (!emailInput.trim()) return;
-													addEmailsFromRaw(emailInput);
-													setEmailInput("");
-													return;
-												}
-												if (
-													e.key === "Backspace" &&
-													!emailInput &&
-													emails.length
-												) {
-													removeEmail(emails[emails.length - 1]);
-												}
-											}}
-											onBlur={() => {
-												if (!emailInput.trim()) return;
-												addEmailsFromRaw(emailInput);
-												setEmailInput("");
-											}}
-											onPaste={(e) => {
-												const raw = e.clipboardData.getData("text");
-												if (!raw) return;
-												if (!/[\s,;\n]/.test(raw)) return;
-												e.preventDefault();
-												addEmailsFromRaw(raw);
-											}}
-											placeholder={
-												emails.length
-													? "Add more emails"
-													: "Type email and press space"
-											}
-											style={chipInput}
-										/>
-									</div>
-								</div>
-							)}
-
-							<button
-								onClick={() => void handleCreate()}
-								disabled={creating}
-								style={createBtn}
-							>
-								{creating ? "Creating..." : "Create Link"}
-							</button>
-
-							{createdLink && (
-								<div
-									style={{
-										border: "1px solid var(--border)",
-										background: "var(--bg-elev)",
-										borderRadius: 10,
-										padding: 10,
-									}}
-								>
-									<div
-										style={{
-											fontSize: 11,
-											color: "var(--muted)",
-											textTransform: "uppercase",
-											letterSpacing: "0.08em",
-											marginBottom: 6,
-										}}
-									>
-										Created Link
-									</div>
-									<div
-										style={{ display: "flex", gap: 8, alignItems: "center" }}
-									>
-										<input
-											readOnly
-											value={createdLink}
-											style={{ ...field, padding: "8px 10px" }}
-										/>
-										<button
-											onClick={() => void copyToClipboard(createdLink)}
-											style={ghostBtn}
-											title="Copy"
-										>
-											<HiOutlineClipboardDocument />
-										</button>
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
-				</div>
-			)}
+			{open && typeof document !== "undefined"
+				? createPortal(modal, document.body)
+				: null}
 		</>
 	);
 }
@@ -251,30 +245,32 @@ const overlayStyle: React.CSSProperties = {
 	position: "fixed",
 	inset: 0,
 	zIndex: 180,
-	display: "grid",
-	placeItems: "center",
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
 	padding: 14,
 };
 
 const backdropStyle: React.CSSProperties = {
 	position: "absolute",
 	inset: 0,
-	background: "color-mix(in srgb, #050607 50%, transparent)",
-	backdropFilter: "blur(14px) saturate(135%)",
-	WebkitBackdropFilter: "blur(14px) saturate(135%)",
+	background:
+		"radial-gradient(120% 120% at 10% 10%, rgba(255,255,255,0.12), rgba(8,10,16,0.55) 45%, rgba(4,6,10,0.78) 100%)",
+	backdropFilter: "blur(24px) saturate(170%)",
+	WebkitBackdropFilter: "blur(24px) saturate(170%)",
 };
 
 const modalStyle: React.CSSProperties = {
 	position: "relative",
 	width: "100%",
 	maxWidth: 560,
-	background: "color-mix(in srgb, var(--bg-soft) 80%, transparent)",
-	border: "1px solid color-mix(in srgb, var(--border) 70%, #ffffff22)",
+	background: "color-mix(in srgb, var(--bg-soft) 70%, transparent)",
+	border: "1px solid color-mix(in srgb, var(--border) 62%, #ffffff33)",
 	borderRadius: 16,
 	padding: 16,
-	boxShadow: "0 24px 70px rgba(0,0,0,0.42)",
-	backdropFilter: "blur(22px)",
-	WebkitBackdropFilter: "blur(22px)",
+	boxShadow: "0 28px 80px rgba(0,0,0,0.48)",
+	backdropFilter: "blur(26px) saturate(160%)",
+	WebkitBackdropFilter: "blur(26px) saturate(160%)",
 };
 
 const iconBtn: React.CSSProperties = {

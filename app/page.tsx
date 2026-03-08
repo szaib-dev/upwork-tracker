@@ -1,15 +1,27 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import AppHeader from "@/components/AppHeader";
 import Filters from "@/components/Filters";
-import ProposalTable from "@/components/ProposalTable";
 import AddProposalDrawer from "@/components/AddProposalDrawer";
-import DashboardStats from "@/components/analytics/DashboardStats";
 import MonthDropdown from "@/components/MonthDropdown";
 import { useProposals } from "@/hooks/proposal";
 import { Proposal } from "@/lib/types/proposal";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+
+const DashboardStats = dynamic(
+	() => import("@/components/analytics/DashboardStats"),
+	{
+		loading: () => <TableSkeleton rows={2} />,
+	},
+);
+
+const ProposalTable = dynamic(() => import("@/components/ProposalTable"), {
+	loading: () => <TableSkeleton rows={6} />,
+});
 
 type FilterType = "All" | Proposal["status"];
 
@@ -35,6 +47,8 @@ function buildCountdown(target: Date, nowTs: number) {
 
 export default function ProposalTracker() {
 	const { session } = useAuth();
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { proposals, loading, updateProposal, addProposal, deleteProposal } =
 		useProposals(session?.user?.id);
 
@@ -52,6 +66,13 @@ export default function ProposalTracker() {
 	const [isForgotMode, setIsForgotMode] = useState(false);
 	const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 	const [nowTs, setNowTs] = useState(() => Date.now());
+	const nextAfterLogin = searchParams.get("next");
+
+	useEffect(() => {
+		if (!session || !nextAfterLogin) return;
+		if (!nextAfterLogin.startsWith("/") || nextAfterLogin.startsWith("//")) return;
+		router.replace(nextAfterLogin);
+	}, [session, nextAfterLogin, router]);
 
 	useEffect(() => {
 		const timer = setInterval(() => setNowTs(Date.now()), 1000);
@@ -203,251 +224,233 @@ export default function ProposalTracker() {
 
 	if (!session || isRecoveryMode) {
 		return (
-			<div className="min-h-screen flex items-center justify-center p-5  text-neutral-300 font-sans">
+			<div className="min-h-screen flex items-center justify-center p-6 bg-[var(--bg-deep)] text-[var(--text)] font-sans selection:bg-[var(--primary)] selection:text-black">
 				<style>{`
-        .auth-input {
-          width: 100%;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 10px;
-          padding: 14px 16px;
-          color: #fff;
-          font-size: 14px;
-          font-weight: 300;
-          outline: none;
-          transition: border-color 0.2s, background 0.2s;
-          box-sizing: border-box;
-        }
-        .auth-input::placeholder { color: #444; }
-        .auth-input:focus {
-          border-color: rgba(255,255,255,0.18);
-          background: rgba(255,255,255,0.05);
-        }
-        .auth-input:disabled { opacity: 0.45; cursor: not-allowed; }
+                .auth-card {
+                    background: var(--bg-elev);
+                    border: 1px solid var(--border);
+                    border-radius: 28px;
+                    padding: clamp(32px, 5vw, 56px);
+                    box-shadow: 0 40px 100px -20px rgba(0,0,0,0.7);
+                    position: relative;
+                }
+                /* Glow effect behind the card */
+                .auth-card::after {
+                    content: '';
+                    position: absolute;
+                    inset: -1px;
+                    background: linear-gradient(135deg, var(--border), transparent, var(--border));
+                    border-radius: 28px;
+                    z-index: -1;
+                    opacity: 0.5;
+                }
+                .auth-input {
+                    width: 100%;
+                    background: var(--bg-soft);
+                    border: 1px solid var(--border);
+                    border-radius: 12px;
+                    padding: 14px 16px;
+                    color: var(--text);
+                    font-size: 14px;
+                    font-weight: 300;
+                    outline: none;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .auth-input:focus {
+                    border-color: var(--primary);
+                    background: var(--bg-elev);
+                    box-shadow: 0 0 0 1px var(--primary);
+                }
+                .auth-input::placeholder { color: var(--muted); opacity: 0.5; }
 
-        .auth-submit {
-          width: 100%;
-          background: #fff;
-          color: #000;
-          font-size: 14px;
-          font-weight: 500;
-          border: none;
-          border-radius: 10px;
-          padding: 14px;
-          cursor: pointer;
-          transition: background 0.2s, opacity 0.2s;
-          letter-spacing: 0.01em;
-        }
-        .auth-submit:hover:not(:disabled) { background: #e8e8e8; }
-        .auth-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+                .auth-submit {
+                    width: 100%;
+                    background: var(--primary);
+                    color: #0e1217; /* Dark text for primary contrast */
+                    font-size: 14px;
+                    font-weight: 700;
+                    border: none;
+                    border-radius: 12px;
+                    padding: 16px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    letter-spacing: -0.01em;
+                }
+                .auth-submit:hover:not(:disabled) { 
+                    opacity: 0.9;
+                    transform: translateY(-1px);
+                    box-shadow: 0 8px 20px -6px var(--primary);
+                }
+                .auth-submit:active { transform: translateY(0); }
+                .auth-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .auth-link-btn {
-          width: 100%;
-          background: transparent;
-          border: none;
-          font-size: 13px;
-          color: #555;
-          font-weight: 300;
-          cursor: pointer;
-          padding: 4px 0;
-          transition: color 0.18s;
-          text-align: center;
-        }
-        .auth-link-btn:hover { color: #fff; }
+                .feature-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    color: var(--muted);
+                    font-size: 14px;
+                    font-weight: 300;
+                    transition: color 0.3s;
+                }
+                .feature-item:hover { color: var(--text); }
+                .feature-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: var(--primary);
+                    box-shadow: 0 0 8px var(--primary);
+                }
+            `}</style>
 
-        .auth-divider {
-          height: 1px;
-          background: rgba(255,255,255,0.06);
-          margin: 2px 0;
-        }
-
-        .auth-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 999px;
-          padding: 5px 12px;
-          font-size: 12px;
-          color: #666;
-          margin-bottom: 28px;
-          letter-spacing: 0.02em;
-        }
-        .auth-badge-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #3a3a3a;
-        }
-      `}</style>
-
-				<div className="w-full max-w-[1180px] grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-center">
-					{/* Left — branding */}
+				<div className="w-full max-w-[1200px] grid grid-cols-1 md:grid-cols-2 gap-16 lg:gap-24 items-center">
+					{/* Left Column — Branding */}
 					<div className="hidden md:block">
-						<div className="auth-badge">
-							<span className="auth-badge-dot" />
-							Freelancer dashboard
+						<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-soft)] border border-[var(--border)] text-[10px] uppercase tracking-[0.15em] text-[var(--primary)] mb-8 font-bold">
+							<span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
+							Professional Dashboard
 						</div>
 
-						<h1 className="text-5xl lg:text-6xl font-extralight tracking-tight text-white leading-[1.12]">
-							Track proposals
-							<br />
-							<span style={{ color: "#2a2a2a" }}>like a pro.</span>
+						<h1 className="text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.05]">
+							Track proposals <br />
+							<span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] via-neutral-200 to-neutral-500">
+								like a pro.
+							</span>
 						</h1>
 
-						<p className="mt-7 text-base text-neutral-500 font-light leading-relaxed max-w-sm">
-							A fast, quiet workspace for proposals, follow-ups, analytics, and
-							client tracking — built for freelancers.
+						<p className="mt-8 text-lg text-[var(--muted)] font-light leading-relaxed max-w-md">
+							A high-performance workspace designed for elite freelancers.
+							Quiet, fast, and built to close deals.
 						</p>
 
-						<div className="mt-12 flex flex-col gap-3">
+						<div className="mt-12 flex flex-col gap-5">
 							{[
-								{ icon: "◎", label: "Proposal tracking & analytics" },
-								{ icon: "◷", label: "Follow-up scheduling" },
-								{ icon: "◈", label: "Client management" },
-							].map((f) => (
-								<div key={f.label} className="flex items-center gap-3">
-									<span style={{ fontSize: 13, color: "#333" }}>{f.icon}</span>
-									<span
-										style={{ fontSize: 13, color: "#444", fontWeight: 300 }}
-									>
-										{f.label}
-									</span>
+								"Proposal tracking & real-time analytics",
+								"Automated follow-up scheduling",
+								"Integrated client management CRM",
+							].map((label) => (
+								<div key={label} className="feature-item">
+									<span className="feature-dot" />
+									{label}
 								</div>
 							))}
 						</div>
 					</div>
 
-					{/* Right — form card */}
-					<div
-						style={{
-							background: "#0a0a0a",
-							border: "1px solid rgba(255,255,255,0.06)",
-							borderRadius: 20,
-							padding: "clamp(24px, 5vw, 40px)",
-							boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
-						}}
-					>
-						{/* Mobile heading */}
-						<div className="md:hidden mb-6">
-							<h1 className="text-3xl font-extralight tracking-tight text-white">
-								Track proposals
-								<br />
-								<span style={{ color: "#2a2a2a" }}>like a pro.</span>
+					{/* Right Column — Auth Card */}
+					<div className="auth-card">
+						{/* Mobile Branding (only visible on small screens) */}
+						<div className="md:hidden mb-8">
+							<h1 className="text-4xl font-bold tracking-tight text-white">
+								Track <span className="text-[var(--primary)]">pro.</span>
 							</h1>
 						</div>
 
-						<div style={{ marginBottom: 24 }}>
-							<h2
-								style={{
-									fontSize: 20,
-									fontWeight: 300,
-									color: "#fff",
-									margin: 0,
-									letterSpacing: "-0.01em",
-								}}
-							>
+						<div className="mb-10">
+							<h2 className="text-3xl font-bold text-white tracking-tight">
 								{isRecoveryMode
 									? "Reset password"
 									: isForgotMode
 										? "Forgot password"
 										: isSignUp
-											? "Create an account"
+											? "Create account"
 											: "Welcome back"}
 							</h2>
-							<p
-								style={{
-									fontSize: 13,
-									color: "#444",
-									marginTop: 5,
-									fontWeight: 300,
-								}}
-							>
+							<p className="text-[var(--muted)] font-light mt-2 text-sm">
 								{isRecoveryMode
-									? "Enter a new password below."
+									? "Secure your workspace with a new password."
 									: isForgotMode
-										? "We'll send a reset link to your email."
+										? "We'll send a recovery link to your inbox."
 										: isSignUp
-											? "Get started for free."
-											: "Sign in to your workspace."}
+											? "Join the elite freelancer community today."
+											: "Please enter your details to continue."}
 							</p>
 						</div>
 
-						<form
-							onSubmit={handleAuth}
-							style={{ display: "flex", flexDirection: "column", gap: 10 }}
-						>
+						<form onSubmit={handleAuth} className="flex flex-col gap-4">
 							{isSignUp && (
-								<input
-									value={fullName}
-									onChange={(e) => setFullName(e.target.value)}
-									type="text"
-									required
-									placeholder="Full name"
-									className="auth-input"
-								/>
+								<div className="space-y-1">
+									<label className="text-[10px] uppercase tracking-wider font-bold text-[var(--muted)] ml-1">
+										Full Name
+									</label>
+									<input
+										value={fullName}
+										onChange={(e) => setFullName(e.target.value)}
+										type="text"
+										required
+										placeholder="John Doe"
+										className="auth-input"
+									/>
+								</div>
 							)}
 
-							<input
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								type="email"
-								required
-								disabled={isRecoveryMode}
-								placeholder="Email address"
-								className="auth-input"
-							/>
-
-							{!isForgotMode && (
+							<div className="space-y-1">
+								<label className="text-[10px] uppercase tracking-wider font-bold text-[var(--muted)] ml-1">
+									Email Address
+								</label>
 								<input
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-									type="password"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									type="email"
 									required
-									placeholder={isRecoveryMode ? "New password" : "Password"}
+									disabled={isRecoveryMode}
+									placeholder="name@workspace.com"
 									className="auth-input"
 								/>
+							</div>
+
+							{!isForgotMode && (
+								<div className="space-y-1">
+									<div className="flex justify-between items-center px-1">
+										<label className="text-[10px] uppercase tracking-wider font-bold text-[var(--muted)]">
+											Password
+										</label>
+										{!isSignUp && !isRecoveryMode && (
+											<button
+												type="button"
+												onClick={() => setIsForgotMode(true)}
+												className="text-[11px] text-[var(--primary)] hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer"
+											>
+												Forgot password?
+											</button>
+										)}
+									</div>
+									<input
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+										type="password"
+										required
+										placeholder="••••••••"
+										className="auth-input"
+									/>
+								</div>
 							)}
 
 							{(isSignUp || isRecoveryMode) && !isForgotMode && (
-								<input
-									value={confirmPassword}
-									onChange={(e) => setConfirmPassword(e.target.value)}
-									type="password"
-									required
-									placeholder="Confirm password"
-									className="auth-input"
-								/>
+								<div className="space-y-1">
+									<label className="text-[10px] uppercase tracking-wider font-bold text-[var(--muted)] ml-1">
+										Confirm Password
+									</label>
+									<input
+										value={confirmPassword}
+										onChange={(e) => setConfirmPassword(e.target.value)}
+										type="password"
+										required
+										placeholder="••••••••"
+										className="auth-input"
+									/>
+								</div>
 							)}
 
 							{authError && (
-								<div
-									style={{
-										fontSize: 13,
-										color: "#f87171",
-										fontWeight: 300,
-										padding: "8px 12px",
-										background: "rgba(248,113,113,0.07)",
-										border: "1px solid rgba(248,113,113,0.15)",
-										borderRadius: 8,
-									}}
-								>
+								<div className="p-3 mt-2 rounded-xl bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)] text-xs font-medium flex items-center gap-2">
+									<span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
 									{authError}
 								</div>
 							)}
+
 							{authNotice && (
-								<div
-									style={{
-										fontSize: 13,
-										color: "#a3a3a3",
-										fontWeight: 300,
-										padding: "8px 12px",
-										background: "rgba(255,255,255,0.04)",
-										border: "1px solid rgba(255,255,255,0.08)",
-										borderRadius: 8,
-									}}
-								>
+								<div className="p-3 mt-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[var(--primary)] text-xs font-medium">
 									{authNotice}
 								</div>
 							)}
@@ -455,58 +458,41 @@ export default function ProposalTracker() {
 							<button
 								type="submit"
 								disabled={authLoading}
-								className="auth-submit"
-								style={{ marginTop: 6 }}
+								className="auth-submit mt-4"
 							>
 								{authLoading
-									? "Please wait..."
+									? "Synchronizing..."
 									: isRecoveryMode
 										? "Update Password"
 										: isForgotMode
-											? "Send Reset Link"
+											? "Send Recovery Link"
 											: isSignUp
-												? "Create Account"
-												: "Sign In"}
+												? "Create Free Account"
+												: "Sign Into Workspace"}
 							</button>
 
-							<div className="auth-divider" style={{ marginTop: 6 }} />
-
-							{!isSignUp && !isForgotMode && !isRecoveryMode && (
+							<div className="mt-8 pt-6 border-t border-[var(--border)] flex flex-col items-center">
 								<button
 									type="button"
 									onClick={() => {
-										setIsForgotMode(true);
+										if (isRecoveryMode) setIsRecoveryMode(false);
+										if (isForgotMode) setIsForgotMode(false);
+										else setIsSignUp((x) => !x);
+										setFullName("");
+										setPassword("");
+										setConfirmPassword("");
 										setAuthError(null);
 										setAuthNotice(null);
 									}}
-									className="auth-link-btn"
+									className="text-sm text-[var(--muted)] hover:text-white transition-colors bg-transparent border-none cursor-pointer flex items-center gap-2"
 								>
-									Forgot password?
-								</button>
-							)}
-
-							<button
-								type="button"
-								onClick={() => {
-									if (isRecoveryMode) setIsRecoveryMode(false);
-									if (isForgotMode) setIsForgotMode(false);
-									else setIsSignUp((x) => !x);
-									setFullName("");
-									setPassword("");
-									setConfirmPassword("");
-									setAuthError(null);
-									setAuthNotice(null);
-								}}
-								className="auth-link-btn"
-							>
-								{isRecoveryMode
-									? "Back to sign in"
-									: isForgotMode
-										? "Back to sign in"
+									{isRecoveryMode || isForgotMode
+										? "← Back to login"
 										: isSignUp
-											? "Already have an account? Sign in"
-											: "Don't have an account? Sign up"}
-							</button>
+											? "Already a member? Sign in"
+											: "New to the platform? Create account"}
+								</button>
+							</div>
 						</form>
 					</div>
 				</div>
@@ -516,7 +502,7 @@ export default function ProposalTracker() {
 
 	return (
 		<div
-			className=""
+			className="fade-in-up"
 			style={{
 				minHeight: "100vh",
 				background: "var(--bg)",
@@ -609,22 +595,12 @@ export default function ProposalTracker() {
 							proposals={proposals}
 						/>
 					</div>
-					<div style={{ minWidth: 0 }}>
+					<div style={{ minWidth: 0 }} className="home-stats">
 						<DashboardStats proposals={filtered} />
 					</div>
 
 					{loading ? (
-						<div
-							style={{
-								background: "var(--bg-soft)",
-								border: "1px solid var(--border)",
-								borderRadius: 14,
-								padding: "14px",
-								color: "var(--muted)",
-							}}
-						>
-							Loading proposals...
-						</div>
+						<TableSkeleton rows={6} />
 					) : (
 						<div style={{ minWidth: 0 }}>
 							<ProposalTable
@@ -645,6 +621,11 @@ export default function ProposalTracker() {
             padding-bottom: 14px !important;
           }
         }
+        @media (max-width: 640px) {
+          .home-stats {
+            display: none !important;
+          }
+        }
       `}</style>
 
 			{drawerOpen && (
@@ -656,32 +637,3 @@ export default function ProposalTracker() {
 		</div>
 	);
 }
-
-const authInput: React.CSSProperties = {
-	background: "var(--bg-elev)",
-	border: "1px solid var(--border)",
-	borderRadius: 9,
-	color: "var(--text)",
-	padding: "10px 12px",
-	fontSize: 14,
-	outline: "none",
-};
-
-const primaryBtn: React.CSSProperties = {
-	background: "var(--primary)",
-	color: "#04141f",
-	border: "none",
-	borderRadius: 9,
-	padding: "10px",
-	fontWeight: 700,
-	cursor: "pointer",
-};
-
-const ghostBtn: React.CSSProperties = {
-	background: "var(--bg-elev)",
-	border: "1px solid var(--border)",
-	borderRadius: 9,
-	padding: "9px",
-	color: "var(--muted)",
-	cursor: "pointer",
-};

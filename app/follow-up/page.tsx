@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	FaCalendarPlus,
 	FaTrash,
@@ -25,6 +26,8 @@ type ClientItem = {
 
 export default function FollowUpPage() {
 	const { session } = useAuth();
+	const router = useRouter();
+	const pathname = usePathname();
 	const { proposals, loading, updateProposal } = useProposals(
 		session?.user?.id,
 	);
@@ -37,6 +40,11 @@ export default function FollowUpPage() {
 	const [clientName, setClientName] = useState("");
 	const [followAt, setFollowAt] = useState("");
 	const [topic, setTopic] = useState("");
+
+	useEffect(() => {
+		if (session) return;
+		router.replace(`/?next=${encodeURIComponent(pathname || "/follow-up")}`);
+	}, [session, router, pathname]);
 
 	// Update time every minute to keep "overdue" / "due in 24h" calculations fresh
 	useEffect(() => {
@@ -159,7 +167,7 @@ export default function FollowUpPage() {
 		toast("Follow-up schedule removed.", "success");
 	};
 
-	if (!session) return <div style={emptyState}>Please sign in first.</div>;
+	if (!session) return null;
 
 	return (
 		<div
@@ -722,11 +730,4 @@ const avatarStyle: React.CSSProperties = {
 	fontWeight: 700,
 	flexShrink: 0,
 	fontSize: 16,
-};
-const emptyState: React.CSSProperties = {
-	minHeight: "100vh",
-	display: "grid",
-	placeItems: "center",
-	background: "var(--bg)",
-	color: "var(--text)",
 };

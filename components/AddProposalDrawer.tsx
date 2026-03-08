@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { FaTimes } from "react-icons/fa";
 import { STATUSES, STATUS_COLORS } from "./Filters";
 import { emptyProposalInput, ProposalInput } from "@/lib/types/proposal";
 
@@ -171,7 +172,7 @@ export default function AddProposalDrawer({
 							cursor: "pointer",
 						}}
 					>
-						x
+						<FaTimes />
 					</button>
 				</div>
 

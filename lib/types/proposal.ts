@@ -18,6 +18,7 @@ export type Proposal = {
 	loom: boolean;
 	viewed: boolean;
 	lead: boolean;
+	isSaved: boolean;
 	status: ProposalStatus;
 	replyDate: string;
 	followUpAt: string;
@@ -43,6 +44,7 @@ export const emptyProposalInput: ProposalInput = {
 	loom: false,
 	viewed: false,
 	lead: false,
+	isSaved: false,
 	status: "Sent",
 	replyDate: "",
 	followUpAt: "",

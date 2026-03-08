@@ -23,7 +23,7 @@ type HookResult = {
 	deleteProposal: (id: number) => Promise<{ ok: boolean; error?: string }>;
 };
 
-const SOCIAL_KEYS = ["linkedin", "twitter", "upwork", "website"];
+const SOCIAL_KEYS = ["linkedin", "twitter", "upwork", "website", "chat"];
 
 function detectNamingStyle(
 	row: Record<string, unknown> | undefined,
@@ -65,6 +65,7 @@ function normalizeRow(
 		loom: Boolean(get("loom", "loom")),
 		viewed: Boolean(get("viewed", "viewed")),
 		lead: Boolean(get("lead", "lead")),
+		isSaved: Boolean(get("isSaved", "is_saved")),
 		status: String(get("status", "status") ?? "Sent") as Proposal["status"],
 		replyDate: String(get("replyDate", "reply_date") ?? ""),
 		followUpAt: String(get("followUpAt", "follow_up_at") ?? ""),
@@ -90,6 +91,7 @@ function toDbColumn(field: keyof Proposal, naming: NamingStyle): string {
 		replyDate: "reply_date",
 		followUpAt: "follow_up_at",
 		followUpTopic: "follow_up_topic",
+		isSaved: "is_saved",
 		clientCountry: "client_country",
 		clientName: "client_name",
 		clientEmail: "client_email",
@@ -121,6 +123,7 @@ function toDbInsert(
 		loom: Boolean(source.loom),
 		viewed: Boolean(source.viewed),
 		lead: Boolean(source.lead),
+		isSaved: Boolean(source.isSaved),
 		status: source.status,
 		replyDate: cleanOptionalDate(source.replyDate),
 		followUpAt: cleanOptionalDate(source.followUpAt),
@@ -281,7 +284,14 @@ export function useProposals(userId?: string | null): HookResult {
 						const statusNext = String(nextValue) as Proposal["status"];
 						localPatch = { status: statusNext };
 						if (statusNext === "Viewed") localPatch.viewed = true;
-						if (statusNext === "Sent") localPatch.viewed = false;
+						if (statusNext === "Replied") {
+							localPatch.viewed = true;
+							localPatch.lead = true;
+						}
+						if (statusNext === "Sent") {
+							localPatch.viewed = false;
+							localPatch.lead = false;
+						}
 						return { ...item, ...localPatch };
 					}
 

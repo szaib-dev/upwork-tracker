@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-	/* your options here */
+	poweredByHeader: false,
+	compress: true,
+	experimental: {
+		optimizePackageImports: ["react-icons", "recharts", "gsap"],
+	},
 };
 
 export default nextConfig;

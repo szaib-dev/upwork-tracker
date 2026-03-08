@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	FaEnvelope,
 	FaGlobe,
 	FaLinkedin,
 	FaTwitter,
+	FaComments,
 	FaTrash,
 	FaChevronLeft,
 	FaUserPlus,
+	FaExternalLinkAlt,
 } from "react-icons/fa";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
@@ -37,6 +40,7 @@ type ClientDetail = {
 		twitter: string;
 		upwork: string;
 		website: string;
+		chat: string;
 	};
 };
 
@@ -45,6 +49,7 @@ type ManualClientProfile = {
 	name: string;
 	email: string;
 	country: string;
+	chatLink: string;
 };
 
 function normalizeLink(raw: string) {
@@ -63,6 +68,8 @@ function getInitials(name: string) {
 
 export default function ClientsPage() {
 	const { session } = useAuth();
+	const router = useRouter();
+	const pathname = usePathname();
 	const { proposals, loading, updateProposal, deleteProposal } = useProposals(
 		session?.user?.id,
 	);
@@ -76,9 +83,17 @@ export default function ClientsPage() {
 	const [newClientName, setNewClientName] = useState("");
 	const [newClientEmail, setNewClientEmail] = useState("");
 	const [newClientCountry, setNewClientCountry] = useState("");
+	const [newClientChatLink, setNewClientChatLink] = useState("");
 	const [savingClient, setSavingClient] = useState(false);
 	const [manualClients, setManualClients] = useState<ManualClientProfile[]>([]);
 	const [manualLoading, setManualLoading] = useState(false);
+	const [chatLinkInput, setChatLinkInput] = useState("");
+	const [savingChatLink, setSavingChatLink] = useState(false);
+
+	useEffect(() => {
+		if (session) return;
+		router.replace(`/?next=${encodeURIComponent(pathname || "/clients")}`);
+	}, [session, router, pathname]);
 
 	useEffect(() => {
 		if (!session?.user?.id) {
@@ -91,7 +106,7 @@ export default function ClientsPage() {
 			setManualLoading(true);
 			const { data, error } = await supabase
 				.from("client_profiles")
-				.select("id, name, email, country")
+				.select("id, name, email, country, chat_link")
 				.eq("user_id", session.user.id)
 				.order("id", { ascending: false });
 
@@ -108,6 +123,7 @@ export default function ClientsPage() {
 					name: String(row.name ?? ""),
 					email: String(row.email ?? ""),
 					country: String(row.country ?? ""),
+					chatLink: String(row.chat_link ?? ""),
 				}),
 			);
 			setManualClients(rows);
@@ -124,21 +140,38 @@ export default function ClientsPage() {
 		const map: Record<string, ClientDetail> = {};
 
 		proposals.forEach((p) => {
+			const hasClientIdentity =
+				Boolean(p.clientEmail?.trim()) ||
+				Boolean(p.clientName?.trim()) ||
+				Boolean(p.socials?.chat?.trim()) ||
+				Boolean(p.socials?.linkedin?.trim()) ||
+				Boolean(p.socials?.twitter?.trim()) ||
+				Boolean(p.socials?.website?.trim()) ||
+				Boolean(p.socials?.upwork?.trim());
+			if (!hasClientIdentity) return;
+
 			const key = (
 				p.clientEmail ||
 				p.clientName ||
+				p.socials?.chat ||
 				`client-${p.id}`
 			).toLowerCase();
 			if (!map[key]) {
 				map[key] = {
 					key,
-					name: p.clientName || "Unknown Client",
+					name: p.clientName || "Client",
 					email: p.clientEmail || "",
 					country: p.clientCountry || "",
 					profileId: undefined,
 					proposalIds: [],
 					proposals: [],
-					socials: { linkedin: "", twitter: "", upwork: "", website: "" },
+					socials: {
+						linkedin: "",
+						twitter: "",
+						upwork: "",
+						website: "",
+						chat: "",
+					},
 				};
 			}
 			map[key].proposalIds.push(p.id);
@@ -153,6 +186,7 @@ export default function ClientsPage() {
 			map[key].socials.twitter ||= p.socials?.twitter || "";
 			map[key].socials.upwork ||= p.socials?.upwork || "";
 			map[key].socials.website ||= p.socials?.website || "";
+			map[key].socials.chat ||= p.socials?.chat || "";
 		});
 
 		for (const c of manualClients) {
@@ -166,7 +200,13 @@ export default function ClientsPage() {
 					profileId: c.id,
 					proposalIds: [],
 					proposals: [],
-					socials: { linkedin: "", twitter: "", upwork: "", website: "" },
+					socials: {
+						linkedin: "",
+						twitter: "",
+						upwork: "",
+						website: "",
+						chat: c.chatLink || "",
+					},
 				};
 				continue;
 			}
@@ -175,6 +215,8 @@ export default function ClientsPage() {
 			if (!map[key].email && c.email) map[key].email = c.email;
 			if (!map[key].country && c.country) map[key].country = c.country;
 			if (!map[key].name && c.name) map[key].name = c.name;
+			if (!map[key].socials.chat && c.chatLink)
+				map[key].socials.chat = c.chatLink;
 		}
 
 		return Object.values(map).sort((a, b) => {
@@ -189,6 +231,10 @@ export default function ClientsPage() {
 			clients.find((c) => c.key === selectedClientKey) ?? clients[0] ?? null,
 		[clients, selectedClientKey],
 	);
+
+	useEffect(() => {
+		setChatLinkInput(selected?.socials.chat || "");
+	}, [selected?.key, selected?.socials.chat]);
 
 	const handleSelectClient = (key: string) => {
 		setSelectedClientKey(key);
@@ -260,6 +306,7 @@ export default function ClientsPage() {
 		const name = newClientName.trim();
 		const email = newClientEmail.trim();
 		const country = newClientCountry.trim();
+		const chatLink = newClientChatLink.trim();
 
 		if (!name) {
 			toast("Client name is required.", "error");
@@ -273,8 +320,10 @@ export default function ClientsPage() {
 		setSavingClient(true);
 		const { data, error } = await supabase
 			.from("client_profiles")
-			.insert([{ user_id: session.user.id, name, email, country }])
-			.select("id, name, email, country")
+			.insert([
+				{ user_id: session.user.id, name, email, country, chat_link: chatLink },
+			])
+			.select("id, name, email, country, chat_link")
 			.single();
 		setSavingClient(false);
 
@@ -288,6 +337,7 @@ export default function ClientsPage() {
 			name: String((data as Record<string, unknown>).name ?? ""),
 			email: String((data as Record<string, unknown>).email ?? ""),
 			country: String((data as Record<string, unknown>).country ?? ""),
+			chatLink: String((data as Record<string, unknown>).chat_link ?? ""),
 		};
 		setManualClients((curr) => [manualClient, ...curr]);
 
@@ -298,24 +348,68 @@ export default function ClientsPage() {
 		setNewClientName("");
 		setNewClientEmail("");
 		setNewClientCountry("");
+		setNewClientChatLink("");
 		toast("Client added.", "success");
 	};
 
-	if (!session) {
-		return (
-			<div
-				style={{
-					minHeight: "100vh",
-					display: "grid",
-					placeItems: "center",
-					background: "var(--bg)",
-					color: "var(--text)",
-				}}
-			>
-				Please sign in first.
-			</div>
-		);
-	}
+	const saveChatLink = async () => {
+		if (!selected || !session?.user?.id) return;
+		const nextLink = chatLinkInput.trim();
+		setSavingChatLink(true);
+
+		if (selected.profileId) {
+			const { error } = await supabase
+				.from("client_profiles")
+				.update({ chat_link: nextLink })
+				.eq("id", selected.profileId)
+				.eq("user_id", session.user.id);
+			setSavingChatLink(false);
+			if (error) {
+				toast(error.message || "Unable to save chat link.", "error");
+				return;
+			}
+			setManualClients((curr) =>
+				curr.map((c) =>
+					c.id === selected.profileId ? { ...c, chatLink: nextLink } : c,
+				),
+			);
+			toast("Chat link saved.", "success");
+			return;
+		}
+
+		const { data, error } = await supabase
+			.from("client_profiles")
+			.insert([
+				{
+					user_id: session.user.id,
+					name: selected.name || "",
+					email: selected.email || "",
+					country: selected.country || "",
+					chat_link: nextLink,
+				},
+			])
+			.select("id, name, email, country, chat_link")
+			.single();
+		setSavingChatLink(false);
+		if (error || !data) {
+			toast(error?.message || "Unable to save chat link.", "error");
+			return;
+		}
+
+		setManualClients((curr) => [
+			{
+				id: Number((data as Record<string, unknown>).id ?? 0),
+				name: String((data as Record<string, unknown>).name ?? ""),
+				email: String((data as Record<string, unknown>).email ?? ""),
+				country: String((data as Record<string, unknown>).country ?? ""),
+				chatLink: String((data as Record<string, unknown>).chat_link ?? ""),
+			},
+			...curr,
+		]);
+		toast("Chat link saved.", "success");
+	};
+
+	if (!session) return null;
 
 	return (
 		<>
@@ -753,7 +847,29 @@ export default function ClientsPage() {
 													{getInitials(selected.name)}
 												</div>
 												<div>
-													<div className="cp-detail-name">{selected.name}</div>
+													<div className="cp-detail-name">
+														{selected.socials.chat ? (
+															<a
+																href={normalizeLink(selected.socials.chat)}
+																target="_blank"
+																rel="noreferrer"
+																style={{
+																	color: "var(--text)",
+																	textDecoration: "underline",
+																	textDecorationColor: "transparent",
+																	textUnderlineOffset: 4,
+																}}
+															>
+																{selected.name}{" "}
+																<FaExternalLinkAlt
+																	size={10}
+																	style={{ verticalAlign: "middle" }}
+																/>
+															</a>
+														) : (
+															selected.name
+														)}
+													</div>
 													<div className="cp-detail-sub">
 														{selected.email || "No email"}
 														{selected.country ? ` � ${selected.country}` : ""}
@@ -769,6 +885,16 @@ export default function ClientsPage() {
 										</div>
 
 										<div className="cp-socials">
+											{selected.socials.chat && (
+												<a
+													href={normalizeLink(selected.socials.chat)}
+													target="_blank"
+													rel="noreferrer"
+													className="cp-chip"
+												>
+													<FaComments size={12} /> Chat
+												</a>
+											)}
 											{selected.socials.linkedin && (
 												<a
 													href={normalizeLink(selected.socials.linkedin)}
@@ -807,6 +933,27 @@ export default function ClientsPage() {
 													<FaEnvelope size={12} /> Email
 												</a>
 											)}
+										</div>
+
+										<div className="cp-bulk">
+											<div className="cp-bulk-label">Client Chat Link</div>
+											<div className="cp-bulk-row">
+												<input
+													type="url"
+													value={chatLinkInput}
+													onChange={(e) => setChatLinkInput(e.target.value)}
+													placeholder="https://chat-link.com"
+													className="cp-input"
+												/>
+												<button
+													onClick={() => void saveChatLink()}
+													className="cp-action-btn"
+													disabled={savingChatLink}
+													style={{ opacity: savingChatLink ? 0.7 : 1 }}
+												>
+													{savingChatLink ? "Saving..." : "Save Link"}
+												</button>
+											</div>
 										</div>
 
 										<div className="cp-bulk">
@@ -1029,6 +1176,28 @@ export default function ClientsPage() {
 									value={newClientCountry}
 									onChange={(e) => setNewClientCountry(e.target.value)}
 									placeholder="Country"
+									className="cp-input"
+									style={{ width: "100%" }}
+								/>
+							</div>
+							<div>
+								<label
+									style={{
+										display: "block",
+										fontSize: 11,
+										color: "var(--muted)",
+										textTransform: "uppercase",
+										letterSpacing: "0.08em",
+										marginBottom: 6,
+									}}
+								>
+									Chat Link (optional)
+								</label>
+								<input
+									value={newClientChatLink}
+									onChange={(e) => setNewClientChatLink(e.target.value)}
+									type="url"
+									placeholder="https://chat-link.com"
 									className="cp-input"
 									style={{ width: "100%" }}
 								/>

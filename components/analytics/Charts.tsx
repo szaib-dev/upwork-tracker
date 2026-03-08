@@ -9,6 +9,7 @@ import {
 	Line,
 	AreaChart,
 	Area,
+	CartesianGrid,
 } from "recharts";
 import { Proposal } from "@/lib/types/proposal";
 
@@ -25,14 +26,24 @@ function ChartTooltip({
 	return (
 		<div
 			style={{
-				background: "var(--bg-soft)",
+				background: "var(--bg-elev)",
 				border: "1px solid var(--border)",
-				borderRadius: 8,
-				padding: "10px 14px",
+				borderRadius: 12,
+				padding: "12px 16px",
+				boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+				backdropFilter: "blur(4px)",
 			}}
 		>
 			{label && (
-				<div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>
+				<div
+					style={{
+						fontSize: 10,
+						color: "var(--muted)",
+						textTransform: "uppercase",
+						letterSpacing: "0.05em",
+						marginBottom: 8,
+					}}
+				>
 					{label}
 				</div>
 			)}
@@ -40,13 +51,26 @@ function ChartTooltip({
 				<div
 					key={i}
 					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 8,
 						fontSize: 13,
-						color: p.color || "var(--text)",
+						color: "var(--text)",
 						fontFamily: "monospace",
 						fontWeight: 600,
+						marginTop: i > 0 ? 4 : 0,
 					}}
 				>
+					<span
+						style={{
+							width: 8,
+							height: 8,
+							borderRadius: "50%",
+							background: p.color,
+						}}
+					/>
 					{p.name}: {p.value}
+					{p.name?.includes("%") || p.name === "Win Rate" ? "%" : ""}
 				</div>
 			))}
 		</div>
@@ -60,30 +84,43 @@ const Section = ({
 	title: string;
 	children: React.ReactNode;
 }) => (
-	<div style={{ marginBottom: 28 }}>
+	<div style={{ marginBottom: 32 }}>
 		<div
 			style={{
-				fontSize: 11,
+				fontSize: 10,
 				color: "var(--muted)",
-				letterSpacing: "0.12em",
+				letterSpacing: "0.15em",
 				textTransform: "uppercase",
-				fontWeight: 700,
-				marginBottom: 12,
+				fontWeight: 800,
+				marginBottom: 16,
+				display: "flex",
+				alignItems: "center",
+				gap: 12,
 			}}
 		>
 			{title}
+			<div
+				style={{
+					flex: 1,
+					height: 1,
+					background: "var(--border)",
+					opacity: 0.5,
+				}}
+			/>
 		</div>
 		{children}
 	</div>
 );
 
-export default function Charts({
-	proposals,
-}: {
-	proposals: Proposal[];
-	monthOrder?: "asc" | "desc";
-}) {
+export default function Charts({ proposals }: { proposals: Proposal[] }) {
 	const stats = useMemo(() => {
+		type MonthlyPoint = {
+			month: string;
+			total: number;
+			hired: number;
+			replied: number;
+			connects: number;
+		};
 		const total = proposals.length;
 		const hired = proposals.filter((p) => p.status === "Hired").length;
 		const viewed = proposals.filter((p) => p.viewed).length;
@@ -92,16 +129,7 @@ export default function Charts({
 		).length;
 		const interviews = proposals.filter((p) => p.status === "Interview").length;
 
-		const monthMap: Record<
-			string,
-			{
-				month: string;
-				total: number;
-				hired: number;
-				replied: number;
-				connects: number;
-			}
-		> = {};
+		const monthMap: Record<string, MonthlyPoint> = {};
 		proposals.forEach((p) => {
 			const month = p.dateSent.slice(0, 7);
 			if (!monthMap[month])
@@ -125,17 +153,16 @@ export default function Charts({
 				...m,
 				monthLabel: new Date(`${m.month}-01`).toLocaleString("en-US", {
 					month: "short",
-					year: "2-digit",
 				}),
 				winRate: m.total ? Math.round((m.hired / m.total) * 100) : 0,
 			}));
 
 		const funnel = [
-			{ name: "Sent", value: total, fill: "#94A3B8" },
+			{ name: "Sent", value: total, fill: "var(--muted)" },
 			{ name: "Viewed", value: viewed, fill: "#FFD060" },
 			{ name: "Replied", value: replied, fill: "#B06EFF" },
 			{ name: "Interview", value: interviews, fill: "#00D4FF" },
-			{ name: "Hired", value: hired, fill: "#00E599" },
+			{ name: "Hired", value: hired, fill: "var(--primary)" },
 		];
 
 		return { monthly, funnel };
@@ -144,139 +171,310 @@ export default function Charts({
 	if (!proposals.length) return null;
 
 	return (
-		<>
-			<Section title="Monthly Trend and Funnel">
-				<div
-					style={{ display: "grid", gridTemplateColumns: "1fr 1.7fr", gap: 14 }}
-					className="charts-grid"
-				>
-					<div
-						style={{
-							background: "var(--bg-soft)",
-							border: "1px solid var(--border)",
-							borderRadius: 10,
-							padding: 16,
-						}}
-					>
-						{stats.funnel.map((f, i) => {
-							const pct = stats.funnel[0].value
-								? Math.round((f.value / stats.funnel[0].value) * 100)
-								: 0;
-							return (
+		<Section title="Performance Analytics">
+			<div className="charts-container">
+				{/* Funnel Widget */}
+				<div className="funnel-card">
+					<div style={{ marginBottom: 20 }}>
+						<h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+							Conversion Funnel
+						</h4>
+						<p
+							style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}
+						>
+							Sent to Hired ratio
+						</p>
+					</div>
+					{stats.funnel.map((f, i) => {
+						const pct = stats.funnel[0].value
+							? Math.round((f.value / stats.funnel[0].value) * 100)
+							: 0;
+						return (
+							<div
+								key={f.name}
+								style={{ marginBottom: i < stats.funnel.length - 1 ? 14 : 0 }}
+							>
 								<div
-									key={f.name}
-									style={{ marginBottom: i < stats.funnel.length - 1 ? 8 : 0 }}
+									style={{
+										display: "flex",
+										justifyContent: "space-between",
+										marginBottom: 6,
+										alignItems: "flex-end",
+									}}
+								>
+									<span
+										style={{
+											fontSize: 11,
+											color: f.fill,
+											fontWeight: 700,
+											textTransform: "uppercase",
+											letterSpacing: "0.05em",
+										}}
+									>
+										{f.name}
+									</span>
+									<span
+										style={{
+											fontSize: 12,
+											color: "var(--text)",
+											fontFamily: "monospace",
+											fontWeight: 700,
+										}}
+									>
+										{f.value}{" "}
+										<span
+											style={{
+												color: "var(--muted)",
+												fontWeight: 400,
+												fontSize: 10,
+											}}
+										>
+											({pct}%)
+										</span>
+									</span>
+								</div>
+								<div
+									style={{
+										background: "rgba(255,255,255,0.05)",
+										borderRadius: 10,
+										height: 6,
+										overflow: "hidden",
+									}}
 								>
 									<div
 										style={{
-											display: "flex",
-											justifyContent: "space-between",
-											marginBottom: 4,
+											width: `${pct}%`,
+											height: "100%",
+											background: f.fill,
+											borderRadius: 10,
+											transition: "width 1s ease-in-out",
 										}}
-									>
-										<span
-											style={{ fontSize: 12, color: f.fill, fontWeight: 600 }}
-										>
-											{f.name}
-										</span>
-										<span
-											style={{
-												fontSize: 12,
-												color: "var(--text)",
-												fontFamily: "monospace",
-											}}
-										>
-											{f.value}{" "}
-											<span style={{ color: "var(--muted)" }}>({pct}%)</span>
-										</span>
-									</div>
-									<div
-										style={{
-											background: "var(--border)",
-											borderRadius: 3,
-											height: 6,
-											overflow: "hidden",
-										}}
-									>
-										<div
-											style={{
-												width: `${pct}%`,
-												height: "100%",
-												background: f.fill,
-												borderRadius: 3,
-											}}
-										/>
-									</div>
+									/>
 								</div>
-							);
-						})}
-					</div>
+							</div>
+						);
+					})}
+				</div>
 
+				{/* Monthly Trend Area Chart */}
+				<div className="trend-card">
 					<div
 						style={{
-							background: "var(--bg-soft)",
-							border: "1px solid var(--border)",
-							borderRadius: 10,
-							padding: 16,
+							marginBottom: 20,
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
 						}}
-						className="chart-panel"
 					>
-						<ResponsiveContainer width="100%" height={220}>
-							<AreaChart data={stats.monthly}>
-								<XAxis
-									dataKey="monthLabel"
-									tick={{ fill: "var(--muted)", fontSize: 11 }}
-									axisLine={false}
-									tickLine={false}
-								/>
-								<YAxis
-									tick={{ fill: "var(--muted)", fontSize: 11 }}
-									axisLine={false}
-									tickLine={false}
-								/>
-								<Tooltip content={<ChartTooltip />} />
-								<Area
-									type="monotone"
-									dataKey="total"
-									stroke="#00D4FF"
-									fill="#00D4FF22"
-									strokeWidth={2}
-									name="Sent"
-								/>
-								<Area
-									type="monotone"
-									dataKey="hired"
-									stroke="#00E599"
-									fill="#00E5991a"
-									strokeWidth={2}
-									name="Hired"
-								/>
-							</AreaChart>
-						</ResponsiveContainer>
-						<ResponsiveContainer width="100%" height={80}>
+						<div>
+							<h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+								Monthly Trends
+							</h4>
+							<p
+								style={{
+									margin: "4px 0 0",
+									fontSize: 12,
+									color: "var(--muted)",
+								}}
+							>
+								Volume vs. Hires
+							</p>
+						</div>
+						<div
+							style={{
+								display: "flex",
+								gap: 12,
+								flexWrap: "wrap",
+								justifyContent: "flex-end",
+							}}
+						>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 4,
+									fontSize: 10,
+									color: "var(--muted)",
+								}}
+							>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										borderRadius: "50%",
+										background: "#00D4FF",
+									}}
+								/>{" "}
+								Sent
+							</div>
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 4,
+									fontSize: 10,
+									color: "var(--muted)",
+								}}
+							>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										borderRadius: "50%",
+										background: "var(--primary)",
+									}}
+								/>{" "}
+								Hired
+							</div>
+						</div>
+					</div>
+
+					<ResponsiveContainer width="100%" height={240}>
+						<AreaChart
+							data={stats.monthly}
+							margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+						>
+							<defs>
+								<linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="5%" stopColor="#00D4FF" stopOpacity={0.3} />
+									<stop offset="95%" stopColor="#00D4FF" stopOpacity={0} />
+								</linearGradient>
+								<linearGradient id="colorHired" x1="0" y1="0" x2="0" y2="1">
+									<stop
+										offset="5%"
+										stopColor="var(--primary)"
+										stopOpacity={0.3}
+									/>
+									<stop
+										offset="95%"
+										stopColor="var(--primary)"
+										stopOpacity={0}
+									/>
+								</linearGradient>
+							</defs>
+							<CartesianGrid
+								strokeDasharray="3 3"
+								vertical={false}
+								stroke="var(--border)"
+								opacity={0.5}
+							/>
+							<XAxis
+								dataKey="monthLabel"
+								tick={{ fill: "var(--muted)", fontSize: 10 }}
+								axisLine={false}
+								tickLine={false}
+								dy={10}
+							/>
+							<YAxis
+								tick={{ fill: "var(--muted)", fontSize: 10 }}
+								axisLine={false}
+								tickLine={false}
+							/>
+							<Tooltip
+								content={<ChartTooltip />}
+								cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+							/>
+							<Area
+								type="monotone"
+								dataKey="total"
+								stroke="#00D4FF"
+								fillOpacity={1}
+								fill="url(#colorTotal)"
+								strokeWidth={2}
+								name="Total Sent"
+							/>
+							<Area
+								type="monotone"
+								dataKey="hired"
+								stroke="var(--primary)"
+								fillOpacity={1}
+								fill="url(#colorHired)"
+								strokeWidth={2}
+								name="Total Hired"
+							/>
+						</AreaChart>
+					</ResponsiveContainer>
+
+					{/* Win Rate Sparkline */}
+					<div
+						style={{
+							marginTop: 20,
+							borderTop: "1px solid var(--border)",
+							paddingTop: 20,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+								marginBottom: 10,
+							}}
+						>
+							<span style={{ fontSize: 12, fontWeight: 600 }}>
+								Win Rate Trend
+							</span>
+							<span
+								style={{
+									fontSize: 11,
+									color: "#B06EFF",
+									fontFamily: "monospace",
+								}}
+							>
+								Avg.{" "}
+								{Math.round(
+									stats.monthly.reduce((acc, curr) => acc + curr.winRate, 0) /
+										stats.monthly.length || 0,
+								)}
+								%
+							</span>
+						</div>
+						<ResponsiveContainer width="100%" height={60}>
 							<LineChart data={stats.monthly}>
-								<XAxis dataKey="monthLabel" hide />
-								<YAxis hide domain={[0, 100]} />
 								<Tooltip content={<ChartTooltip />} />
 								<Line
 									type="monotone"
 									dataKey="winRate"
 									stroke="#B06EFF"
-									strokeWidth={2}
-									dot={{ r: 2, fill: "#B06EFF" }}
-									name="Win Rate %"
+									strokeWidth={3}
+									dot={{ r: 3, fill: "#B06EFF", strokeWidth: 0 }}
+									activeDot={{ r: 5, strokeWidth: 0 }}
+									name="Win Rate"
 								/>
 							</LineChart>
 						</ResponsiveContainer>
 					</div>
 				</div>
-				<style>{`
-          @media (max-width: 900px) {
-            .charts-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
-            .chart-panel { padding: 12px !important; }
-          }
-        `}</style>
-			</Section>
-		</>
+			</div>
+
+			<style>{`
+                .charts-container {
+                    display: grid;
+                    grid-template-columns: 350px 1fr;
+                    gap: 20px;
+                    align-items: start;
+                }
+                .funnel-card, .trend-card {
+                    background: var(--bg-soft);
+                    border: 1px solid var(--border);
+                    border-radius: 16px;
+                    padding: 24px;
+                }
+                @media (max-width: 1024px) {
+                    .charts-container {
+                        grid-template-columns: 1fr;
+                    }
+                }
+                @media (max-width: 640px) {
+                    .funnel-card, .trend-card {
+                        padding: 16px;
+                        border-radius: 12px;
+                    }
+                    .charts-container {
+                        gap: 12px;
+                    }
+                }
+            `}</style>
+		</Section>
 	);
 }

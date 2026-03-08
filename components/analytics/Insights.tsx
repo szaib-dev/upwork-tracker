@@ -18,7 +18,7 @@ function InsightCard({
 				background: "var(--bg-soft)",
 				border: "1px solid var(--border)",
 				borderRadius: 10,
-				padding: 16,
+				padding: "clamp(12px, 2vw, 16px)",
 			}}
 		>
 			<div
@@ -35,9 +35,12 @@ function InsightCard({
 			<div
 				style={{
 					fontFamily: "monospace",
-					fontSize: 24,
+					fontSize: "clamp(18px, 3vw, 24px)",
 					color,
 					fontWeight: 700,
+					whiteSpace: "nowrap",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
 				}}
 			>
 				{value}
@@ -176,8 +179,7 @@ export default function Insights({
 			<div
 				style={{
 					display: "grid",
-					gap: 12,
-					gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
+					gap: "clamp(8px, 1.5vw, 12px)",
 					marginBottom: 14,
 				}}
 				className="insights-grid"
@@ -229,7 +231,7 @@ export default function Insights({
 					background: "var(--bg-soft)",
 					border: "1px solid var(--border)",
 					borderRadius: 12,
-					padding: 16,
+					padding: "clamp(12px, 2vw, 16px)",
 				}}
 			>
 				<div
@@ -243,9 +245,12 @@ export default function Insights({
 				>
 					Monthly Breakdown
 				</div>
-				<div style={{ overflowX: "auto" }}>
+				<div
+					className="monthly-table-wrap"
+					style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}
+				>
 					<table
-						style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}
+						style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}
 					>
 						<thead>
 							<tr>
@@ -267,6 +272,7 @@ export default function Insights({
 											textTransform: "uppercase",
 											letterSpacing: "0.08em",
 											borderBottom: "1px solid var(--border)",
+											whiteSpace: "nowrap",
 										}}
 									>
 										{head}
@@ -282,6 +288,7 @@ export default function Insights({
 											padding: "8px 10px",
 											color: "var(--text)",
 											fontFamily: "monospace",
+											whiteSpace: "nowrap",
 										}}
 									>
 										{month.label}
@@ -307,14 +314,23 @@ export default function Insights({
 					</table>
 				</div>
 			</div>
+
 			<style>{`
-        @media (max-width: 1100px) {
-          .insights-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)) !important; }
-        }
-        @media (max-width: 700px) {
-          .insights-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
-        }
-      `}</style>
+				.insights-grid {
+					grid-template-columns: repeat(4, minmax(0, 1fr));
+				}
+				@media (max-width: 1100px) {
+					.insights-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+				}
+				@media (max-width: 600px) {
+					.insights-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+					.monthly-table-wrap table { min-width: 380px !important; }
+				}
+				@media (max-width: 400px) {
+					.insights-grid { grid-template-columns: 1fr !important; }
+					.monthly-table-wrap table { min-width: 340px !important; }
+				}
+			`}</style>
 		</div>
 	);
 }

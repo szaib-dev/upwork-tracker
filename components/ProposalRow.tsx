@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import ProposalExpanded from "./ProposalExpanded";
 import { STATUSES, STATUS_COLORS } from "./Filters";
 import { Proposal } from "@/lib/types/proposal";
-import { FaTrash } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaTrash } from "react-icons/fa";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -26,7 +26,6 @@ function SmallToggle({
 				borderRadius: 5,
 				padding: "2px 8px",
 				fontSize: 11,
-				cursor: "pointer",
 			}}
 		>
 			{value ? "YES" : "NO"}
@@ -79,7 +78,6 @@ function StatusBadge({
 					borderRadius: 6,
 					padding: "3px 8px",
 					fontSize: 12,
-					cursor: "pointer",
 					transition:
 						"background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease",
 					transform: hoverTrigger ? "translateY(-1px)" : "none",
@@ -121,7 +119,6 @@ function StatusBadge({
 								border: "none",
 								padding: "7px 10px",
 								textAlign: "left",
-								cursor: "pointer",
 								fontSize: 12,
 								transition: "background-color 0.14s ease",
 							}}
@@ -185,27 +182,38 @@ export default function ProposalRow({
 				onClick={onToggleExpand}
 				style={{
 					borderBottom: "1px solid var(--border)",
-					cursor: "pointer",
 					verticalAlign: "top",
+					cursor: "pointer",
 				}}
 			>
-				<td style={{ ...colStyle(340), paddingTop: 8, paddingBottom: 8 }}>
+				<td
+					style={{
+						...colStyle(340),
+						paddingTop: 8,
+						paddingBottom: 8,
+					}}
+				>
 					{p.jobUrl ? (
 						<a
 							href={p.jobUrl}
 							target="_blank"
 							rel="noreferrer"
 							onClick={(e) => e.stopPropagation()}
+							className="proposal-link"
 							style={{
 								display: "inline-block",
 								fontSize: 13,
 								fontWeight: 700,
-								color: "var(--text)",
+								color: "var(--primary)",
 								marginBottom: 4,
-								textDecoration: "none",
+								textDecoration: "underline",
+								textDecorationColor: "transparent",
+								textUnderlineOffset: 3,
+								transition:
+									"color 0.14s ease, text-decoration-color 0.14s ease",
 							}}
 						>
-							{p.jobTitle || "Untitled Proposal"}
+							{p.jobTitle || "Untitled Proposal"} (open)
 						</a>
 					) : (
 						<div
@@ -224,24 +232,41 @@ export default function ProposalRow({
 					>
 						{previewText(p.proposalText)}
 					</div>
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							onToggleExpand();
-						}}
-						style={{
-							marginTop: 6,
-							background: "var(--bg-elev)",
-							border: "1px solid var(--border)",
-							color: "var(--primary)",
-							borderRadius: 8,
-							padding: "3px 8px",
-							fontSize: 11,
-							cursor: "pointer",
-						}}
-					>
-						Go in
-					</button>
+					<div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								void updateProposal(p.id, "isSaved", !p.isSaved);
+							}}
+							style={{
+								background: "var(--bg-elev)",
+								border: "1px solid var(--border)",
+								color: p.isSaved ? "#f04b6a" : "var(--muted)",
+								borderRadius: 8,
+								padding: "4px 8px",
+								fontSize: 12,
+							}}
+							title={p.isSaved ? "Unsave proposal" : "Save proposal"}
+						>
+							{p.isSaved ? <FaHeart /> : <FaRegHeart />}
+						</button>
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								onToggleExpand();
+							}}
+							style={{
+								background: "var(--bg-elev)",
+								border: "1px solid var(--border)",
+								color: "var(--primary)",
+								borderRadius: 8,
+								padding: "3px 8px",
+								fontSize: 11,
+							}}
+						>
+							Go in
+						</button>
+					</div>
 				</td>
 
 				<td
@@ -348,7 +373,6 @@ export default function ProposalRow({
 							color: "var(--danger)",
 							borderRadius: 8,
 							padding: "4px 8px",
-							cursor: "pointer",
 						}}
 					>
 						<FaTrash />
@@ -357,6 +381,12 @@ export default function ProposalRow({
 			</tr>
 
 			{isExpanded && <ProposalExpanded p={p} updateProposal={updateProposal} />}
+			<style>{`
+        .proposal-link:hover {
+          text-decoration-color: currentColor !important;
+          color: color-mix(in srgb, var(--primary) 80%, var(--text) 20%) !important;
+        }
+      `}</style>
 		</>
 	);
 }

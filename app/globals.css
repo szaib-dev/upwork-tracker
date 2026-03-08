@@ -59,10 +59,51 @@ body {
 body {
 	background: var(--bg);
 	color: var(--text);
-	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	font-family: var(--font-sans), "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 	transition:
 		background-color 0.2s ease,
 		color 0.2s ease;
+}
+
+.fade-in-up {
+	animation: fade-in-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.scale-in {
+	animation: scale-in 0.22s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@keyframes fade-in-up {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes scale-in {
+	from {
+		opacity: 0;
+		transform: scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes skeleton-shimmer {
+	0% {
+		background-position: 100% 0;
+	}
+	100% {
+		background-position: -100% 0;
+	}
 }
 
 body.theme-dark {

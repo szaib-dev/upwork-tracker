@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import AppHeader from "@/components/AppHeader";
 import { useProposals } from "@/hooks/proposal";
@@ -15,10 +16,17 @@ function formatMonthKey(key: string) {
 
 export default function ProgressPage() {
 	const { session } = useAuth();
+	const router = useRouter();
+	const pathname = usePathname();
 	const { proposals, loading, updateProposal, deleteProposal } = useProposals(
 		session?.user?.id,
 	);
 	const [selectedMonth, setSelectedMonth] = useState<string>("all");
+
+	useEffect(() => {
+		if (session) return;
+		router.replace(`/?next=${encodeURIComponent(pathname || "/progress")}`);
+	}, [session, router, pathname]);
 
 	const months = useMemo(() => {
 		const unique = Array.from(
@@ -32,7 +40,7 @@ export default function ProgressPage() {
 		return proposals.filter((p) => p.dateSent.startsWith(selectedMonth));
 	}, [proposals, selectedMonth]);
 
-	if (!session) return <div style={emptyState}>Please sign in first.</div>;
+	if (!session) return null;
 
 	return (
 		<div
@@ -44,7 +52,7 @@ export default function ProgressPage() {
 		>
 			<AppHeader />
 			<div style={{ padding: 10 }} className="months-main">
-				<div style={{ maxWidth: 1320, margin: "0 auto" }}>
+				<div style={{ maxWidth: 1420, margin: "0 auto" }}>
 					<div
 						style={{
 							border: "1px solid var(--border)",
@@ -93,11 +101,3 @@ export default function ProgressPage() {
 		</div>
 	);
 }
-
-const emptyState: React.CSSProperties = {
-	minHeight: "100vh",
-	display: "grid",
-	placeItems: "center",
-	background: "var(--bg)",
-	color: "var(--text)",
-};

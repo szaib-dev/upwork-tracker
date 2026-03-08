@@ -1,12 +1,25 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { useProposals } from "@/hooks/proposal";
-import DashboardStats from "@/components/analytics/DashboardStats";
-import Insights from "@/components/analytics/Insights";
-import Charts from "@/components/analytics/Charts";
 import MonthDropdown from "@/components/MonthDropdown";
+import { CardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
+
+const DashboardStats = dynamic(
+	() => import("@/components/analytics/DashboardStats"),
+	{
+		loading: () => <CardSkeleton />,
+	},
+);
+const Insights = dynamic(() => import("@/components/analytics/Insights"), {
+	loading: () => <CardSkeleton />,
+});
+const Charts = dynamic(() => import("@/components/analytics/Charts"), {
+	loading: () => <TableSkeleton rows={4} />,
+});
 
 function formatMonthLabel(month: string) {
 	return new Date(`${month}-01`).toLocaleString("en-US", {
@@ -22,8 +35,15 @@ function weekdayName(dateStr: string) {
 
 export default function AnalyticsDashboard() {
 	const { session } = useAuth();
+	const router = useRouter();
+	const pathname = usePathname();
 	const { proposals, loading } = useProposals(session?.user?.id);
 	const [monthFilter, setMonthFilter] = useState("all");
+
+	useEffect(() => {
+		if (session) return;
+		router.replace(`/?next=${encodeURIComponent(pathname || "/analytics")}`);
+	}, [session, router, pathname]);
 
 	const monthOptions = useMemo(
 		() =>
@@ -87,24 +107,11 @@ export default function AnalyticsDashboard() {
 		return { topStatus, bestDay, avgBudget, leadRate, boostedRate };
 	}, [filtered]);
 
-	if (!session) {
-		return (
-			<div
-				style={{
-					minHeight: "100vh",
-					background: "var(--bg)",
-					color: "var(--text)",
-					display: "grid",
-					placeItems: "center",
-				}}
-			>
-				<div>Please sign in to view analytics.</div>
-			</div>
-		);
-	}
+	if (!session) return null;
 
 	return (
 		<div
+			className="fade-in-up"
 			style={{
 				background: "var(--bg)",
 				minHeight: "100vh",
@@ -120,6 +127,8 @@ export default function AnalyticsDashboard() {
 					gap: 10,
 					maxWidth: 1320,
 					margin: "0 auto",
+					minWidth: 0,
+					overflowX: "clip",
 				}}
 				className="analytics-main"
 			>
@@ -141,10 +150,12 @@ export default function AnalyticsDashboard() {
 					</div>
 					<div
 						style={{
-							minWidth: 230,
+							minWidth: 0,
 							display: "grid",
 							gap: 8,
 							justifyItems: "end",
+							width: "100%",
+							maxWidth: 260,
 						}}
 						className="analytics-filter"
 					>
@@ -163,20 +174,23 @@ export default function AnalyticsDashboard() {
 							value={monthFilter}
 							onChange={setMonthFilter}
 							options={monthSelectOptions}
-							width={240}
+							width={260}
 						/>
 					</div>
 				</section>
 
 				{loading ? (
-					<div style={{ color: "var(--muted)" }}>Loading analytics...</div>
+					<div style={{ display: "grid", gap: 10 }}>
+						<CardSkeleton />
+						<TableSkeleton rows={4} />
+					</div>
 				) : (
 					<>
 						<section
 							style={{
 								...card,
 								display: "grid",
-								gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+								gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
 								gap: 8,
 							}}
 						>
@@ -211,6 +225,11 @@ export default function AnalyticsDashboard() {
 				)}
 			</main>
 			<style>{`
+        .analytics-main,
+        .analytics-main * {
+          min-width: 0;
+          box-sizing: border-box;
+        }
         @media (max-width: 900px) {
           .analytics-main {
             padding-left: 8px !important;
@@ -224,9 +243,22 @@ export default function AnalyticsDashboard() {
           .analytics-filter {
             min-width: 100% !important;
             justify-items: stretch !important;
+            max-width: 100% !important;
           }
           .analytics-title { font-size: 21px !important; }
           .analytics-subtitle { font-size: 12px !important; }
+        }
+        @media (max-width: 520px) {
+          .analytics-main {
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+          }
+          .analytics-hero {
+            padding: 10px !important;
+          }
+          .analytics-title {
+            font-size: 18px !important;
+          }
         }
       `}</style>
 		</div>

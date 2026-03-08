@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { gsap } from "gsap";
 import {
 	FaBars,
 	FaBell,
@@ -8,6 +10,7 @@ import {
 	FaMoon,
 	FaPlus,
 	FaRegCalendarAlt,
+	FaRegHeart,
 	FaSun,
 	FaTimes,
 	FaUserCircle,
@@ -27,7 +30,49 @@ export default function AppHeader({
 	const { theme, toggleTheme } = useTheme();
 	const { session } = useAuth();
 	const { toast } = useToast();
+	const router = useRouter();
 	const [menuOpen, setMenuOpen] = useState(false);
+	const drawerRef = useRef<HTMLDivElement | null>(null);
+	const backdropRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		if (!menuOpen) return;
+		if (!drawerRef.current || !backdropRef.current) return;
+
+		const ctx = gsap.context(() => {
+			gsap.fromTo(
+				backdropRef.current,
+				{ opacity: 0 },
+				{ opacity: 1, duration: 0.16, ease: "power2.out" },
+			);
+			gsap.fromTo(
+				drawerRef.current,
+				{ x: 30, opacity: 0.8 },
+				{ x: 0, opacity: 1, duration: 0.24, ease: "power2.out" },
+			);
+		});
+		return () => ctx.revert();
+	}, [menuOpen]);
+
+	const closeMenu = () => {
+		if (!drawerRef.current || !backdropRef.current) {
+			setMenuOpen(false);
+			return;
+		}
+
+		gsap.to(drawerRef.current, {
+			x: 24,
+			opacity: 0.78,
+			duration: 0.16,
+			ease: "power1.in",
+		});
+		gsap.to(backdropRef.current, {
+			opacity: 0,
+			duration: 0.14,
+			ease: "power1.in",
+			onComplete: () => setMenuOpen(false),
+		});
+	};
 
 	const handleLogout = async () => {
 		const { error } = await supabase.auth.signOut();
@@ -36,7 +81,8 @@ export default function AppHeader({
 			return;
 		}
 		toast("Logged out.", "success");
-		setMenuOpen(false);
+		closeMenu();
+		router.replace("/");
 	};
 
 	return (
@@ -86,6 +132,9 @@ export default function AppHeader({
 						</Link>
 						<Link href="/follow-up" style={topBtn} className="top-btn">
 							Follow Up
+						</Link>
+						<Link href="/saved" style={topBtn} className="top-btn">
+							Saved
 						</Link>
 						<Link
 							href="/profile"
@@ -177,10 +226,12 @@ export default function AppHeader({
 			{menuOpen && (
 				<div style={{ position: "fixed", inset: 0, zIndex: 120 }}>
 					<div
-						onClick={() => setMenuOpen(false)}
+						ref={backdropRef}
+						onClick={closeMenu}
 						style={{ position: "absolute", inset: 0, background: "#00000066" }}
 					/>
 					<div
+						ref={drawerRef}
 						style={{
 							position: "absolute",
 							right: 0,
@@ -204,7 +255,7 @@ export default function AppHeader({
 							}}
 						>
 							<strong>Menu</strong>
-							<button onClick={() => setMenuOpen(false)} style={topBtn}>
+							<button onClick={closeMenu} style={topBtn}>
 								<FaTimes />
 							</button>
 						</div>
@@ -212,7 +263,7 @@ export default function AppHeader({
 							href="/analytics"
 							style={sideLink}
 							className="side-link"
-							onClick={() => setMenuOpen(false)}
+							onClick={closeMenu}
 						>
 							<FaChartLine /> Analytics
 						</Link>
@@ -220,7 +271,7 @@ export default function AppHeader({
 							href="/progress"
 							style={sideLink}
 							className="side-link"
-							onClick={() => setMenuOpen(false)}
+							onClick={closeMenu}
 						>
 							<FaRegCalendarAlt /> Months
 						</Link>
@@ -228,7 +279,7 @@ export default function AppHeader({
 							href="/clients"
 							style={sideLink}
 							className="side-link"
-							onClick={() => setMenuOpen(false)}
+							onClick={closeMenu}
 						>
 							<FaUsers /> Clients
 						</Link>
@@ -236,22 +287,30 @@ export default function AppHeader({
 							href="/follow-up"
 							style={sideLink}
 							className="side-link"
-							onClick={() => setMenuOpen(false)}
+							onClick={closeMenu}
 						>
 							<FaBell /> Follow Up
+						</Link>
+						<Link
+							href="/saved"
+							style={sideLink}
+							className="side-link"
+							onClick={closeMenu}
+						>
+							<FaRegHeart /> Saved
 						</Link>
 						<Link
 							href="/profile"
 							style={sideLink}
 							className="side-link"
-							onClick={() => setMenuOpen(false)}
+							onClick={closeMenu}
 						>
 							<FaUserCircle /> Profile
 						</Link>
 						<button
 							onClick={() => {
 								toggleTheme();
-								setMenuOpen(false);
+								closeMenu();
 							}}
 							style={sideBtn}
 							className="side-btn"

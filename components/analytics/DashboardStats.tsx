@@ -18,17 +18,20 @@ function StatCard({
 				background: "var(--bg-elev)",
 				border: "1px solid var(--border)",
 				borderRadius: 12,
-				padding: "14px 16px",
-				minWidth: 120,
+				padding: "clamp(10px, 2vw, 14px) clamp(12px, 2vw, 16px)",
+				minWidth: 0,
 			}}
 		>
 			<div
 				style={{
-					fontSize: 22,
+					fontSize: "clamp(18px, 3vw, 22px)",
 					fontWeight: 800,
 					color,
 					fontFamily: "monospace",
 					lineHeight: 1,
+					whiteSpace: "nowrap",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
 				}}
 			>
 				{value}
@@ -36,10 +39,13 @@ function StatCard({
 			{sub && (
 				<div
 					style={{
-						fontSize: 11,
+						fontSize: "clamp(10px, 1.5vw, 11px)",
 						color: "var(--muted)",
 						fontFamily: "monospace",
 						marginTop: 2,
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
 					}}
 				>
 					{sub}
@@ -47,7 +53,7 @@ function StatCard({
 			)}
 			<div
 				style={{
-					fontSize: 11,
+					fontSize: "clamp(10px, 1.5vw, 11px)",
 					color: "var(--muted)",
 					marginTop: 4,
 					letterSpacing: "0.06em",
@@ -96,14 +102,15 @@ export default function DashboardStats({
 				border: "1px solid var(--border)",
 				background: "var(--bg-soft)",
 				borderRadius: 14,
-				padding: 12,
+				padding: "clamp(8px, 2vw, 12px)",
 			}}
 		>
 			<div
 				style={{
 					display: "grid",
-					gap: 10,
-					gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+					gap: "clamp(8px, 1.5vw, 10px)",
+					gridTemplateColumns:
+						"repeat(auto-fit, minmax(clamp(130px, 20vw, 170px), 1fr))",
 				}}
 			>
 				<StatCard label="Total" value={stats.total} color="var(--text)" />
